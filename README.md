@@ -12,6 +12,10 @@ This code interacts with data from reddit in a database to build data that can b
 
         (sudo) pip install django
 
+- install South (data migration tool), if it isn't already installed.
+
+        (sudo) pip install South
+
 - in your work directory, create a django site.
 
         django-admin.py startproject <site_directory>
@@ -38,6 +42,8 @@ This code interacts with data from reddit in a database to build data that can b
     
 ### Configure
 
+- To start, setup and configure reddit\_collect, using the instructions in its README.md file.
+
 - from the site\_directory, cd into the site configuration directory, where settings.py is located (it is named the same as site\_directory, but nested inside site\_directory, alongside all the other django code you pulled in from git - <site\_directory>/<same\_name\_as\_site\_directory>).
 
         cd <same_name_as_site_directory>
@@ -48,7 +54,33 @@ This code interacts with data from reddit in a database to build data that can b
 
 - configure the database in settings.py - for database configuration, this code assumes that you set up the database as directed in reddit\_collect's README.md file.
 
-- once you get settings.py configured, then run `python manage.py syncdb` in your site directory to create database tables.  If you are adding this application to a site that already had reddit\_collect installed, this will just create the reddit\_data tables, won't change existing tables.
+- in settings.py, add 'reddit\_data' to the INSTALLED\_APPS list.  Example:
+    
+        INSTALLED_APPS = (
+            'django.contrib.auth',
+            'django.contrib.contenttypes',
+            'django.contrib.sessions',
+            'django.contrib.sites',
+            'django.contrib.messages',
+            'django.contrib.staticfiles',
+            # Uncomment the next line to enable the admin:
+            # 'django.contrib.admin',
+            # Uncomment the next line to enable admin documentation:
+            # 'django.contrib.admindocs',
+            'reddit_collect',
+            'south',
+            'reddit_data',
+        )
+
+- once you get settings.py configured, then run `python manage.py migrate reddit_data` in your site directory to create database tables.
+
+### Set up database - all versions MySQL:
+
+- Create indexes on columns we use to check for duplicates/look up existing records (reddit ID, for example).  _This is really important!  As your table grows, an un-indexed lookup will slow WAY down!_
+
+    - columns on the reddit\_data\_subreddit\_time\_series\_data:
+
+            ALTER TABLE `socs_reddit`.`reddit_data_subreddit_time_series_data` ADD INDEX `subreddit_reddit_id` (subreddit_reddit_id);
 
 ## Usage
 

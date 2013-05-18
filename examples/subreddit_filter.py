@@ -9,7 +9,7 @@ import datetime
 #db_password = ""
 #db_database = ""
 
-reddit_data.models.Subreddit_Time_Series_Data.db_initialize( db_host, db_port, db_username, db_password, db_database )
+reddit_data.models.Subreddit_Time_Series_Data.db_initialize_mysql( db_host, db_port, db_username, db_password, db_database )
 
 # set up date range in which we want to gather data.
 boston_date = datetime.datetime( 2013, 4, 15, 18, 49, 0 )

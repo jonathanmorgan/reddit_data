@@ -97,7 +97,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
 
 
     # database helper.
-    my_mysql_helper = None
+    my_db_helper = None
 
 
     #============================================================================
@@ -106,12 +106,12 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
 
 
     @classmethod
-    def db_initialize( cls, db_host_IN = "localhost", db_port_IN = 3306, db_username_IN = "", db_password_IN = "", db_database_IN = "" ):
+    def db_initialize_mysql( cls, db_host_IN = "localhost", db_port_IN = 3306, db_username_IN = "", db_password_IN = "", db_database_IN = "" ):
         
         # instance variables
-        cls.my_mysql_helper = MySQLdb_Helper( db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
+        cls.my_db_helper = MySQLdb_Helper( db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
         
-    #-- END class method db_initialize() --#
+    #-- END class method db_initialize_mysql() --#
 
     
     @classmethod
@@ -205,7 +205,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                     print( "In " + me + "() [" + started_at_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "] - Category: '" + time_period_category_IN + "'; start dt: " + start_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end dt: " + end_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; interval: " + str( interval_td_IN ) )
 
                     # create database connection - get database helper
-                    mysqldb = cls.my_mysql_helper
+                    mysqldb = cls.my_db_helper
                     
                     # create connection
                     my_connection = mysqldb.get_connection()
@@ -524,7 +524,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                     print( "In " + me + "() [" + datetime.datetime.now().strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "] - Label: '" + time_period_label_IN + "'; start dt: " + start_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end dt: " + end_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; interval: " + str( interval_td_IN ) )
 
                     # create database connection - get database helper
-                    mysqldb = cls.my_mysql_helper
+                    mysqldb = cls.my_db_helper
                     
                     # create connection
                     my_connection = mysqldb.get_connection()
