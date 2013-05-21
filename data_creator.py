@@ -94,6 +94,173 @@ class Data_Creator( object ):
     #============================================================================
     
 
+    def create_domains_from_posts( self, include_all_IN = False, limit_IN = -1, *args, **kwargs ):
+    
+        '''
+        Uses an SQL query to get all domains from posts in the database.  For
+            each, creates a domain model instance, saves it, gets ID, then uses
+            SQL to update all posts and data rows that reference the domain
+            with its ID.
+            
+        Preconditions: Expects to be run on reddit_collect databases where posts
+            have been collected but no related records were created, for
+            performance, and so where you have to subsequently build model
+            instances and relations by hand to use django's relational tools.
+            Also assumes that you have initialized a database helper instance.
+        '''
+        
+        # return reference
+        status_OUT = self.STATUS_SUCCESS
+        
+        # declare variables
+        me = "create_domains_from_posts"
+        
+        # reading in subreddit names and IDs.
+        db_helper = None
+        db_conn = None
+        db_read_cursor = None
+        sql_string = ""
+        result_count = -1
+        current_row = None
+        domain_instance = None
+        domain_name = ""
+        domain_counter = -1
+        domain_model_id = -1
+        
+        # UPDATE-ing posts and comments.
+        sql_update = ""
+        
+        # First, get a connection and a cursor
+        db_helper = self.my_db_helper
+        db_conn = db_helper.get_connection()
+        db_read_cursor = db_helper.get_cursor()
+        db_write_cursor = db_helper.get_cursor()
+        
+        # create SQL string.
+        sql_string = "SELECT DISTINCT domain"
+        sql_string += " FROM reddit_collect_post"
+        sql_string += " WHERE"
+        sql_string += " ( ( domain != '' ) AND ( domain IS NOT NULL ) )"
+        
+        # Include all?
+        if ( include_all_IN == False ):
+    
+            # No - just include those without an ID.
+            sql_string += " AND ( ( domain_id IS NULL ) OR ( domain_id <= 0 ) )"
+            
+        #-- END check to see if include all --#
+
+        sql_string += " ORDER BY domain"
+        
+        # got a limit?
+        if ( ( limit_IN ) and ( limit_IN > 0 ) ):
+    
+            # we do.  Add it.
+            sql_string += " LIMIT 10"
+        
+        #-- END check to see if we have a limit. --#
+        
+        sql_string += ";"
+
+        if ( self.debug_flag == True ):
+        
+            # output SQL
+            print( "In " + me + "() - SQL: " + sql_string )
+        
+        #-- END DEBUG check --#
+        
+        # execute the query
+        db_read_cursor.execute( sql_string )
+        
+        # get number of subreddits.
+        result_count = int( db_read_cursor.rowcount )
+
+        # loop.
+        domain_counter = 0
+        for i in range( result_count ):
+
+            # increment counter
+            domain_counter += 1
+
+            # get row.
+            current_row = db_read_cursor.fetchone()
+            
+            # get values.
+            domain_name = current_row[ 'domain' ]
+             
+            try:
+            
+                # lookup to see if domain already in database.
+                domain_instance = reddit_collect.models.Domain.objects.get( domain_name__iexact = domain_name )
+            
+                # already in database.  Move on.    
+            
+            except Exception as e:            
+            
+                # not in database.  Add it.
+                domain_instance = reddit_collect.models.Domain()
+                
+                # set values
+                domain_instance.domain_name = domain_name
+
+                # domain name longer than 255?
+                if ( len( domain_name ) > 255 ):
+
+                    # yes - store in long name, as well.
+                    domain_instance.domain_long_name = domain_name
+                
+                #-- END check to see if long domain name --#
+                
+                # start with "self."?
+                if ( domain_name.lower().find( "self." ) == 0 ):
+                
+                    # yes - set flag.
+                    domain_instance.is_self_post = True
+                    
+                #-- END check to see if self-post --#
+               
+                # save it.
+                domain_instance.save()
+            
+            #-- END try/except to see if domain already in database. --#
+
+            # get ID from instance.
+            domain_model_id = domain_instance.id
+            
+            # got an ID?
+            if ( ( domain_model_id ) and ( domain_model_id != None ) and ( domain_model_id > 0 ) ):
+            
+                # we do.  Update relation in posts, comments fields.
+                
+                # UPDATE posts
+                db_write_cursor.execute( "UPDATE `reddit_collect_post` SET domain_id = %s WHERE domain_name = %s;", ( domain_model_id, domain_name ) )
+                
+                # UPDATE domain time-series data
+                db_write_cursor.execute( "UPDATE `reddit_data_domain_time_series_data` SET domain_id = %s WHERE domain_name = %s;", ( domain_model_id, domain_name ) )
+
+                # commit changes
+                db_conn.commit()
+            
+            #-- END check to see if model ID --#
+            
+            if ( self.debug_flag == True ):
+            
+                print( "- Processed domain " + str( subreddit_counter ) + " of " + str( result_count ) + " ( " + str( datetime.datetime.now() ) + " ) - ID: " + str( domain_model_id ) + "; name = " + domain_name )
+            
+            #-- END DEBUG check --#
+            
+            # clear caches, performance stuff, etc.  Try garbage
+            #    collecting, not clearing django cache, to start.
+            gc.collect()
+            django.db.reset_queries()
+
+        #-- END loop over domains. --#
+        
+        return status_OUT
+    
+    #-- END method create_domains_from_posts() --#
+    
+    
     def create_subreddits_from_posts( self, include_all_IN = False, limit_IN = -1, *args, **kwargs ):
     
         '''
