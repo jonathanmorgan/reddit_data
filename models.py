@@ -75,7 +75,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
 
     subreddit = models.ForeignKey( reddit_collect.models.Subreddit, null = True, blank = True )
     subreddit_name = models.TextField( null = True, blank = True )
-    subreddit_reddit_id = models.CharField( max_length = 255, null = True, blank = True )
+    subreddit_reddit_id = models.CharField( max_length = 255, null = True, blank = True, db_index = True )
     post_count = models.IntegerField( null = True, blank = True )
     self_post_count = models.IntegerField( null = True, blank = True )
     over_18_count = models.IntegerField( null = True, blank = True )
@@ -861,7 +861,7 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
     #match_value = models.CharField( max_length = 255, null = True, blank = True )
 
     domain = models.ForeignKey( reddit_collect.models.Domain, null = True, blank = True )
-    domain_name =  models.CharField( max_length = 255, null = True, blank = True )
+    domain_name =  models.CharField( max_length = 255, null = True, blank = True, db_index = True )
     domain_long_name = models.TextField( null = True, blank = True )
     post_count = models.IntegerField( null = True, blank = True )
     self_post_count = models.IntegerField( null = True, blank = True )
