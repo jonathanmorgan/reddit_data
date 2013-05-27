@@ -28,13 +28,21 @@ This code interacts with data from reddit in a database to build data that can b
 
         git clone https://github.com/derv82/reddiwrap.git
 
-- pull in Jon's python\_utilities
+- add empty file named "\_\_init\_\_.py" to the reddiwrap folder, so it can be accessed as a python module.
+
+        touch reddiwrap/__init__.py
+
+- pull in python\_utilities
 
         git clone https://github.com/jonathanmorgan/python_utilities.git
 
 - pull in the python reddit\_collect code
 
         git clone https://github.com/jonathanmorgan/reddit_collect.git
+    
+- pull in the python django\_time\_series code
+
+        git clone https://github.com/jonathanmorgan/django_time_series.git
     
 - pull in the python reddit\_data code
 
@@ -54,7 +62,7 @@ This code interacts with data from reddit in a database to build data that can b
 
 - configure the database in settings.py - for database configuration, this code assumes that you set up the database as directed in reddit\_collect's README.md file.
 
-- in settings.py, add 'reddit\_data' to the INSTALLED\_APPS list.  Example:
+- in settings.py, add 'django\_time\_series' and 'reddit\_data' to the INSTALLED\_APPS list.  Example:
     
         INSTALLED_APPS = (
             'django.contrib.auth',
@@ -67,20 +75,16 @@ This code interacts with data from reddit in a database to build data that can b
             # 'django.contrib.admin',
             # Uncomment the next line to enable admin documentation:
             # 'django.contrib.admindocs',
-            'reddit_collect',
             'south',
+            'reddit_collect',
+            'django_time_series',
             'reddit_data',
         )
 
-- once you get settings.py configured, then run `python manage.py migrate reddit_data` in your site directory to create database tables.
+- once you get settings.py configured, then run the following in your site directory to create database tables, set up indexes, etc.:
 
-### Set up database - all versions MySQL:
-
-- Create indexes on columns we use to check for duplicates/look up existing records (reddit ID, for example).  _This is really important!  As your table grows, an un-indexed lookup will slow WAY down!_
-
-    - columns on the reddit\_data\_subreddit\_time\_series\_data:
-
-            ALTER TABLE `socs_reddit`.`reddit_data_subreddit_time_series_data` ADD INDEX `subreddit_reddit_id` (subreddit_reddit_id);
+        python manage.py migrate django_time_series
+        python manage.py migrate reddit_data
 
 ## Usage
 
@@ -115,13 +119,15 @@ If you don't use manage.py to open a shell (or if you are making a shell script 
     import os
     os.environ[ 'DJANGO_SETTINGS_MODULE' ] = "<site_folder_name>.settings"
 
-Then, regardless, you'll need to do the following to set up the collector:
+Then, there are numerous examples in /examples you can use to try out different ways of making reddit data:
 
-## Notes
-
-## TODO
-
-## Questions
+- domain_create_rows_from_posts.py - create domain instances from posts, then put domain model instance IDs back into the posts so the relations are available to django.
+- domain_time_series.py - create per-domain time series data from a set of reddit posts.
+- mysql_helper_test.py - basic - how to use mysql_helper.
+- subreddit_filter.py - filters time series data based on a text match, then updates filter flag on time series records to record the filter matches.
+- subreddit_lookup.py - basic - lookup subreddit time series data using django.
+- subreddit_rows_from_posts.py - create subreddit instances from posts, then put subreddit model instance IDs back into the posts so the relations are available to django.
+- subreddit_time_series.py - create per-subreddit time series data from a set of reddit posts.
 
 ## License:
 
