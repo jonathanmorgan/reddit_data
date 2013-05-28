@@ -249,7 +249,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         if ( len( text_contains_and_IN ) > 0 ):
                         
                             # we are.  output SQL.
-                            filter_sql = cls.sql_text_filter( text_contains_and_IN, cls.SQL_AND )
+                            filter_sql = reddit_collect.models.Post.sql_text_filter( text_contains_and_IN, cls.SQL_AND )
                             
                             # got anything back?
                             if ( filter_sql != "" ):
@@ -264,7 +264,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         if ( len( text_contains_or_IN ) > 0 ):
                         
                             # we are.  output SQL.
-                            filter_sql = cls.sql_text_filter( text_contains_or_IN, cls.SQL_OR )
+                            filter_sql = reddit_collect.models.Post.sql_text_filter( text_contains_or_IN, cls.SQL_OR )
                             
                             # got anything back?
                             if ( filter_sql != "" ):
@@ -726,48 +726,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
     
     #-- END method make_data() --#
 
-    @classmethod
-    def sql_text_filter( cls, filter_list_IN = [], and_or_or_IN = SQL_OR, *args, **kwargs ):
 
-        # return reference
-        sql_OUT = ""
-        
-        # declare variables
-        current_prefix = ""
-        current_filter = ""
-        current_filter_lower = ""
-        
-        # does filter list have something in it?
-        if ( len( filter_list_IN ) > 0 ):
-        
-            # it does.  output SQL.
-            current_prefix = ""
-            
-            # loop over filters.
-            for current_filter in filter_list_IN:
-            
-                # convert to lower case
-                current_filter_lower = current_filter.lower()
-            
-                # add to SQL
-                sql_OUT += current_prefix
-                sql_OUT += " ("
-                sql_OUT += " ( LOWER( title ) LIKE '%" + current_filter_lower + "%' )"
-                sql_OUT += " OR ( LOWER( selftext ) LIKE '%" + current_filter_lower + "%' )"
-                sql_OUT += " )"
-                
-                # update the current prefix
-                current_prefix = " " + and_or_or_IN
-
-            #-- END loop over filter text --#
-
-        #-- END check to see if filter list have something in it --#
-        
-        return sql_OUT
-    
-    #-- END method sql_text_filter() --#
-
-    
     #============================================================================
     # instance methods
     #============================================================================
@@ -1034,7 +993,7 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         if ( len( text_contains_and_IN ) > 0 ):
                         
                             # we are.  output SQL.
-                            filter_sql = cls.sql_text_filter( text_contains_and_IN, cls.SQL_AND )
+                            filter_sql = reddit_collect.models.Post.sql_text_filter( text_contains_and_IN, cls.SQL_AND )
                             
                             # got anything back?
                             if ( filter_sql != "" ):
@@ -1049,7 +1008,7 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         if ( len( text_contains_or_IN ) > 0 ):
                         
                             # we are.  output SQL.
-                            filter_sql = cls.sql_text_filter( text_contains_or_IN, cls.SQL_OR )
+                            filter_sql = reddit_collect.models.Post.sql_text_filter( text_contains_or_IN, cls.SQL_OR )
                             
                             # got anything back?
                             if ( filter_sql != "" ):
@@ -1508,48 +1467,7 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
     
     #-- END method make_data() --#
 
-    @classmethod
-    def sql_text_filter( cls, filter_list_IN = [], and_or_or_IN = SQL_OR, *args, **kwargs ):
 
-        # return reference
-        sql_OUT = ""
-        
-        # declare variables
-        current_prefix = ""
-        current_filter = ""
-        current_filter_lower = ""
-        
-        # does filter list have something in it?
-        if ( len( filter_list_IN ) > 0 ):
-        
-            # it does.  output SQL.
-            current_prefix = ""
-            
-            # loop over filters.
-            for current_filter in filter_list_IN:
-            
-                # convert to lower case
-                current_filter_lower = current_filter.lower()
-            
-                # add to SQL
-                sql_OUT += current_prefix
-                sql_OUT += " ("
-                sql_OUT += " ( LOWER( title ) LIKE '%" + current_filter_lower + "%' )"
-                sql_OUT += " OR ( LOWER( selftext ) LIKE '%" + current_filter_lower + "%' )"
-                sql_OUT += " )"
-                
-                # update the current prefix
-                current_prefix = " " + and_or_or_IN
-
-            #-- END loop over filter text --#
-
-        #-- END check to see if filter list have something in it --#
-        
-        return sql_OUT
-    
-    #-- END method sql_text_filter() --#
-
-    
     #============================================================================
     # instance methods
     #============================================================================
