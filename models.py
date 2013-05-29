@@ -1285,6 +1285,7 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
         current_subreddit_id = ""
         current_subreddit_post_count = -1
         current_instance = None
+        domain_instance = None
         bulk_create_list = None
         bulk_create_count = -1
         total_created_count = -1
@@ -1430,6 +1431,28 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             current_instance.num_comments_min = current_row[ 'num_comments_min' ]
                             current_instance.num_comments_max = current_row[ 'num_comments_max' ]    
 
+                            # see if there is a domain instance for this domain.
+                            domain_instance = None
+                            try:
+                            
+                                # try to get subreddit instance
+                                domain_instance = reddit_collect.models.Domain.objects.get( name__iexact = current_name )
+                                
+                            except:
+                            
+                                # for now, do nothing.
+                                domain_instance = None
+                            
+                            #-- END try/except to look up domain model instance. --#
+                            
+                            # got one?
+                            if ( ( domain_instance ) and ( domain_instance != None ) ):
+                            
+                                # add to current_instance
+                                current_instance.domain = domain_instance
+                            
+                            #-- END check to see if we have subreddit instance --#
+                            
                             # Add to list of instances to bulk save.
                             bulk_create_list.append( current_instance )                            
                             
