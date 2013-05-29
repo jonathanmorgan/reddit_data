@@ -510,6 +510,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         current_subreddit_id = ""
         current_subreddit_post_count = -1
         current_instance = None
+        subreddit_instance = None
         bulk_create_list = None
         bulk_create_count = -1
         total_created_count = -1
@@ -628,6 +629,15 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                                 time_period_value = time_period_label_IN + "-" + time_period_value
                                 
                             #-- END check to see if time-period label. --#
+                            
+                            # got a type?
+                            if ( ( time_period_type_IN ) and ( time_period_type_IN != "" ) ):
+                            
+                                # yes - add to the beginning.
+                                time_period_value = time_period_type_IN + "-" + time_period_value                            
+
+                            #-- END check to see if we have a time period type --#
+                            
                             current_instance.time_period_label = time_period_value
                             
                             current_instance.aggregate_index = aggregate_counter
@@ -655,8 +665,30 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             current_instance.downvotes_max = current_row[ 'downvotes_max' ]
                             current_instance.num_comments_average = current_row[ 'num_comments_average' ]
                             current_instance.num_comments_min = current_row[ 'num_comments_min' ]
-                            current_instance.num_comments_max = current_row[ 'num_comments_max' ]    
+                            current_instance.num_comments_max = current_row[ 'num_comments_max' ]
 
+                            # see if there is a subreddit instance for this ID.
+                            subreddit_instance = None
+                            try:
+                            
+                                # try to get subreddit instance
+                                subreddit_instance = reddit_collect.models.Subreddit.objects.get( reddit_full_id = current_subreddit_id )
+                                
+                            except:
+                            
+                                # for now, do nothing.
+                                subreddit_instance = None
+                            
+                            #-- END try/except to look up subreddit model instance. --#
+                            
+                            # got one?
+                            if ( ( subreddit_instance ) and ( subreddit_instance != None ) ):
+                            
+                                # add to current_instance
+                                current_instance.subreddit = subreddit_instance
+                            
+                            #-- END check to see if we have subreddit instance --#
+                            
                             # Add to list of instances to bulk save.
                             bulk_create_list.append( current_instance )                            
                             
