@@ -41,6 +41,8 @@ import reddit_collect.models
 
 # Create your models here.
 
+# !TODO abstract parent class, since just about everything is identical between these.
+
 @python_2_unicode_compatible
 class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
 
@@ -469,7 +471,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
     
 
     @classmethod
-    def make_data( cls, start_dt_IN, end_dt_IN, interval_td_IN, time_period_type_IN = "", time_period_label_IN = "", aggregate_counter_start_IN = 0, *args, **kwargs ):
+    def make_data( cls, start_dt_IN, end_dt_IN, interval_td_IN, time_period_type_IN = "", time_period_label_IN = "", aggregate_counter_start_IN = 0, include_filters_IN = True, *args, **kwargs ):
     
         '''
         Accepts a start and end datetime, the interval you want captured in time-
@@ -489,6 +491,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         - time_period_type_IN - time period type value you want stored in each time-series record.  Defaults to empty string.
         - time_period_label_IN - (optional) label to use in labeling.  If set, this is appended to the front of an integer counter that counts up each time period, is stored in time_period_label.  If not set, the integer time period counter is the only thing stored in time period label.
         - aggregate_counter_start_IN - (optional) value you want aggregate counter to begin at for this set of data.  This lets you track increasing time-series across labels (before - 1 to 366 - and after - 367 and up - for instance).
+        - include_filters_IN - (optional) Boolean - True if you want to use the posts' filter fields to set the time series values, False if you want to set them separately.  Defaults to True.
         '''
     
         # return reference
@@ -504,6 +507,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         current_start_dt = None
         current_end_dt = None
         current_select_sql = ""
+        include_filters = True
         result_count = -1
         current_row = None
         current_subreddit_name = ""
@@ -515,6 +519,9 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         bulk_create_count = -1
         total_created_count = -1
         aggregate_counter = -1
+        
+        # Include filters?
+        include_filters = include_filters_IN
         
         # make sure we have start date, end date, and interval.
         if ( ( start_dt_IN ) and ( start_dt_IN != None ) ):
@@ -585,6 +592,34 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         current_select_sql += ", AVG( num_comments ) AS num_comments_average"
                         current_select_sql += ", MIN( num_comments ) AS num_comments_min"
                         current_select_sql += ", MAX( num_comments ) AS num_comments_max"
+
+                        # also aggregate filter flags - just MAX, SUM to count matches.
+                        if ( include_filters == True ):
+                        
+                            # yes (for now, we always do).
+                            current_select_sql += ", MAX( filter_1 ) AS filter_1"
+                            current_select_sql += ", SUM( filter_1 ) AS match_count_1"
+                            current_select_sql += ", MAX( filter_2 ) AS filter_2"
+                            current_select_sql += ", SUM( filter_2 ) AS match_count_2"
+                            current_select_sql += ", MAX( filter_3 ) AS filter_3"
+                            current_select_sql += ", SUM( filter_3 ) AS match_count_3"
+                            current_select_sql += ", MAX( filter_4 ) AS filter_4"
+                            current_select_sql += ", SUM( filter_4 ) AS match_count_4"
+                            current_select_sql += ", MAX( filter_5 ) AS filter_5"
+                            current_select_sql += ", SUM( filter_5 ) AS match_count_5"
+                            current_select_sql += ", MAX( filter_6 ) AS filter_6"
+                            current_select_sql += ", SUM( filter_6 ) AS match_count_6"
+                            current_select_sql += ", MAX( filter_7 ) AS filter_7"
+                            current_select_sql += ", SUM( filter_7 ) AS match_count_7"
+                            current_select_sql += ", MAX( filter_8 ) AS filter_8"
+                            current_select_sql += ", SUM( filter_8 ) AS match_count_8"
+                            current_select_sql += ", MAX( filter_9 ) AS filter_9"
+                            current_select_sql += ", SUM( filter_9 ) AS match_count_9"
+                            current_select_sql += ", MAX( filter_10 ) AS filter_10"
+                            current_select_sql += ", SUM( filter_10 ) AS match_count_10"
+                            
+                        #-- END check to see if we include filters --#
+                            
                         current_select_sql += " FROM reddit_collect_post"
                         current_select_sql += " WHERE created_utc_dt BETWEEN '"
                         current_select_sql += current_start_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT )
@@ -688,6 +723,33 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                                 current_instance.subreddit = subreddit_instance
                             
                             #-- END check to see if we have subreddit instance --#
+
+                            # including filters?
+                            if ( include_filters == True ):
+                                
+                                # yes. Set fields from query results.
+                                current_instance.filter_1 = current_row[ 'filter_1' ]
+                                current_instance.match_count_1 = current_row[ 'match_count_1' ]
+                                current_instance.filter_2 = current_row[ 'filter_2' ]
+                                current_instance.match_count_2 = current_row[ 'match_count_2' ]
+                                current_instance.filter_3 = current_row[ 'filter_3' ]
+                                current_instance.match_count_3 = current_row[ 'match_count_3' ]
+                                current_instance.filter_4 = current_row[ 'filter_4' ]
+                                current_instance.match_count_4 = current_row[ 'match_count_4' ]
+                                current_instance.filter_5 = current_row[ 'filter_5' ]
+                                current_instance.match_count_5 = current_row[ 'match_count_5' ]
+                                current_instance.filter_6 = current_row[ 'filter_6' ]
+                                current_instance.match_count_6 = current_row[ 'match_count_6' ]
+                                current_instance.filter_7 = current_row[ 'filter_7' ]
+                                current_instance.match_count_7 = current_row[ 'match_count_7' ]
+                                current_instance.filter_8 = current_row[ 'filter_8' ]
+                                current_instance.match_count_8 = current_row[ 'match_count_8' ]
+                                current_instance.filter_9 = current_row[ 'filter_9' ]
+                                current_instance.match_count_9 = current_row[ 'match_count_9' ]
+                                current_instance.filter_10 = current_row[ 'filter_10' ]
+                                current_instance.match_count_10 = current_row[ 'match_count_10' ]
+                            
+                            #-- END check to see if we include filters --#
                             
                             # Add to list of instances to bulk save.
                             bulk_create_list.append( current_instance )                            
@@ -1244,7 +1306,7 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
     
 
     @classmethod
-    def make_data( cls, start_dt_IN, end_dt_IN, interval_td_IN, time_period_type_IN = "", time_period_label_IN = "", aggregate_counter_start_IN = 0, *args, **kwargs ):
+    def make_data( cls, start_dt_IN, end_dt_IN, interval_td_IN, time_period_type_IN = "", time_period_label_IN = "", aggregate_counter_start_IN = 0, include_filters_IN = True, *args, **kwargs ):
     
         '''
         Accepts a start and end datetime, the interval you want captured in time-
@@ -1264,6 +1326,7 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
         - time_period_type_IN - time period type value you want stored in each time-series record.  Defaults to empty string.
         - time_period_label_IN - (optional) label to use in labeling.  If set, this is appended to the front of an integer counter that counts up each time period, is stored in time_period_label.  If not set, the integer time period counter is the only thing stored in time period label.
         - aggregate_counter_start_IN - (optional) value you want aggregate counter to begin at for this set of data.  This lets you track increasing time-series across labels (before - 1 to 366 - and after - 367 and up - for instance).
+        - include_filters_IN - (optional) Boolean - True if you want to use the posts' filter fields to set the time series values, False if you want to set them separately.  Defaults to True.
         '''
     
         # return reference
@@ -1279,6 +1342,7 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
         current_start_dt = None
         current_end_dt = None
         current_select_sql = ""
+        include_filters = True
         result_count = -1
         current_row = None
         current_subreddit_name = ""
@@ -1290,6 +1354,9 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
         bulk_create_count = -1
         total_created_count = -1
         aggregate_counter = -1
+        
+        # Include filters?
+        include_filters = include_filters_IN
         
         # make sure we have start date, end date, and interval.
         if ( ( start_dt_IN ) and ( start_dt_IN != None ) ):
@@ -1359,6 +1426,34 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         current_select_sql += ", AVG( num_comments ) AS num_comments_average"
                         current_select_sql += ", MIN( num_comments ) AS num_comments_min"
                         current_select_sql += ", MAX( num_comments ) AS num_comments_max"
+
+                        # also aggregate filter flags - just MAX, SUM to count matches.
+                        if ( include_filters == True ):
+                        
+                            # yes (for now, we always do).
+                            current_select_sql += ", MAX( filter_1 ) AS filter_1"
+                            current_select_sql += ", SUM( filter_1 ) AS match_count_1"
+                            current_select_sql += ", MAX( filter_2 ) AS filter_2"
+                            current_select_sql += ", SUM( filter_2 ) AS match_count_2"
+                            current_select_sql += ", MAX( filter_3 ) AS filter_3"
+                            current_select_sql += ", SUM( filter_3 ) AS match_count_3"
+                            current_select_sql += ", MAX( filter_4 ) AS filter_4"
+                            current_select_sql += ", SUM( filter_4 ) AS match_count_4"
+                            current_select_sql += ", MAX( filter_5 ) AS filter_5"
+                            current_select_sql += ", SUM( filter_5 ) AS match_count_5"
+                            current_select_sql += ", MAX( filter_6 ) AS filter_6"
+                            current_select_sql += ", SUM( filter_6 ) AS match_count_6"
+                            current_select_sql += ", MAX( filter_7 ) AS filter_7"
+                            current_select_sql += ", SUM( filter_7 ) AS match_count_7"
+                            current_select_sql += ", MAX( filter_8 ) AS filter_8"
+                            current_select_sql += ", SUM( filter_8 ) AS match_count_8"
+                            current_select_sql += ", MAX( filter_9 ) AS filter_9"
+                            current_select_sql += ", SUM( filter_9 ) AS match_count_9"
+                            current_select_sql += ", MAX( filter_10 ) AS filter_10"
+                            current_select_sql += ", SUM( filter_10 ) AS match_count_10"
+                            
+                        #-- END check to see if we include filters --#
+                            
                         current_select_sql += " FROM reddit_collect_post"
                         current_select_sql += " WHERE created_utc_dt BETWEEN '"
                         current_select_sql += current_start_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT )
@@ -1452,6 +1547,33 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
                                 current_instance.domain = domain_instance
                             
                             #-- END check to see if we have subreddit instance --#
+                            
+                            # including filters?
+                            if ( include_filters == True ):
+                                
+                                # yes. Set fields from query results.
+                                current_instance.filter_1 = current_row[ 'filter_1' ]
+                                current_instance.match_count_1 = current_row[ 'match_count_1' ]
+                                current_instance.filter_2 = current_row[ 'filter_2' ]
+                                current_instance.match_count_2 = current_row[ 'match_count_2' ]
+                                current_instance.filter_3 = current_row[ 'filter_3' ]
+                                current_instance.match_count_3 = current_row[ 'match_count_3' ]
+                                current_instance.filter_4 = current_row[ 'filter_4' ]
+                                current_instance.match_count_4 = current_row[ 'match_count_4' ]
+                                current_instance.filter_5 = current_row[ 'filter_5' ]
+                                current_instance.match_count_5 = current_row[ 'match_count_5' ]
+                                current_instance.filter_6 = current_row[ 'filter_6' ]
+                                current_instance.match_count_6 = current_row[ 'match_count_6' ]
+                                current_instance.filter_7 = current_row[ 'filter_7' ]
+                                current_instance.match_count_7 = current_row[ 'match_count_7' ]
+                                current_instance.filter_8 = current_row[ 'filter_8' ]
+                                current_instance.match_count_8 = current_row[ 'match_count_8' ]
+                                current_instance.filter_9 = current_row[ 'filter_9' ]
+                                current_instance.match_count_9 = current_row[ 'match_count_9' ]
+                                current_instance.filter_10 = current_row[ 'filter_10' ]
+                                current_instance.match_count_10 = current_row[ 'match_count_10' ]
+                            
+                            #-- END check to see if we include filters --#
                             
                             # Add to list of instances to bulk save.
                             bulk_create_list.append( current_instance )                            
