@@ -44,6 +44,68 @@ import reddit_collect.models
 # !TODO abstract parent class, since just about everything is identical between these.
 
 @python_2_unicode_compatible
+class Reference_Domain( models.Model ):
+    
+    
+    #============================================================================
+    # constants-ish
+    #============================================================================
+
+
+    DOMAIN_TYPE_NEWS = 'news'
+
+    
+    #============================================================================
+    # Django model fields
+    #============================================================================
+    
+    domain_name = models.CharField( max_length = 255 )
+    domain_path = models.CharField( max_length = 255, null = True, blank = True )
+    long_name = models.TextField( null = True, blank = True )
+    description = models.CharField( max_length = 255, null = True, blank = True )
+    source = models.CharField( max_length = 255, null = True, blank = True )
+    source_details = models.CharField( max_length = 255, null = True, blank = True )
+    domain_type = models.CharField( max_length = 255, null = True, blank = True )
+    is_news = models.BooleanField( blank = True, default = False )
+    is_multimedia = models.BooleanField( blank = True, default = False )
+    rank = models.IntegerField( null = True, blank = True )
+    create_date = models.DateTimeField( auto_now_add = True )
+    last_update = models.DateTimeField( auto_now = True )
+
+    
+    #============================================================================
+    # instance methods
+    #============================================================================
+
+
+    def __str__(self):
+        
+        # return reference
+        string_OUT = ""
+        
+        # id?
+        if ( ( self.id ) and ( self.id != None ) and ( self.id > 0 ) ):
+        
+            string_OUT += "Domain " + str( self.id )
+        
+        #-- END check to see if id --#
+        
+        # name
+        if( self.name ):
+        
+            string_OUT += " - " + self.name
+        
+        #-- END check to see if name --#
+        
+        return string_OUT
+
+    #-- END __str__() method --#
+
+
+#-- END class Reference_Domain
+
+
+@python_2_unicode_compatible
 class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
 
     #============================================================================
