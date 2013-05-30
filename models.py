@@ -91,11 +91,11 @@ class Reference_Domain( models.Model ):
         #-- END check to see if id --#
         
         # name
-        if( self.name ):
+        if( self.domain_name ):
         
-            string_OUT += " - " + self.name
+            string_OUT += " - " + self.domain_name
         
-        #-- END check to see if name --#
+        #-- END check to see if domain_name --#
         
         return string_OUT
 

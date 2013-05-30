@@ -24,6 +24,7 @@ import time
 
 # django imports
 import django.db
+from django.db.models import Q
 
 # site-specific imports.
 #site_path = '/home/socs/socs_reddit/'
@@ -31,7 +32,12 @@ import django.db
 #    sys.path.append( site_path )
 
 #import myLib
+
+# import reddit_collect models.
 import reddit_collect.models
+
+# import reddit_data models.
+import reddit_data.models
 
 # python_utilities
 # from python_utilities.rate_limited.basic_rate_limited import BasicRateLimited
@@ -723,7 +729,94 @@ class Data_Creator( object ):
         # instance variables
         self.my_db_helper = MySQLdb_Helper( db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
         
-    #-- END class method db_initialize_mysql() --#
+    #-- END method db_initialize_mysql() --#
 
+
+    def mark_domains_as_news( self, *args, **kwargs ):
     
+        # return reference
+        status_OUT = self.STATUS_SUCCESS
+        
+        # declare variables.
+
+        # auditing
+        start_dt = None
+        end_dt = None
+        
+        # interacting with domains
+        news_domains_rs = None
+        news_domain_count = -1
+        news_domain_counter = -1
+        current_news_domain = None
+        current_news_domain_name = ""
+        matching_domain_rs = None
+        match_count = -1
+        matched_domains_count = -1
+        current_reddit_domain = None
+        total_match_count = -1
+        
+        # start datetime
+        start_dt = datetime.datetime.now()
+        
+        # get list of news domains from reference domain table.
+        news_domains_rs = reddit_data.models.Reference_Domain.objects.filter( domain_type = reddit_data.models.Reference_Domain.DOMAIN_TYPE_NEWS )
+        
+        # loop over the domains.
+        news_domain_count = news_domains_rs.count()
+        news_domain_counter = 0
+        matched_domains_count = 0
+        total_match_count = 0
+        for current_news_domain in news_domains_rs:
+        
+            # increment counter
+            news_domain_counter += 1
+        
+            # get name (converted to lower case)
+            current_news_domain_name = current_news_domain.domain_name.lower()
+
+            # look for domains in the reddit domains table that either equal the
+            #    domain name or contain "." + domain name (subdomains).
+            matching_domains_rs = reddit_collect.models.Domain.objects.filter( Q( name__icontains = "." + current_news_domain_name ) | Q( name__iexact = current_news_domain_name ) )
+            
+            # got matches?
+            match_count = matching_domains_rs.count()
+            total_match_count += match_count
+            
+            # output
+            print( "- domain " + str( news_domain_counter ) + " of " + str( news_domain_count ) + ": " + current_news_domain_name + " - matches: " + str( match_count ) )
+            
+            if ( match_count > 0 ):
+            
+                # increment matched domains count.
+                matched_domains_count += 1
+            
+                # yes - loop, update each so is_news is True, then save.
+                for current_reddit_domain in matching_domains_rs:
+                
+                    # set is_news flag to true.
+                    current_reddit_domain.is_news = True
+                    
+                    # save.
+                    current_reddit_domain.save()
+                
+                #-- END loop over matching domains. --#
+            
+            #-- END check to see if matching domains --#
+        
+        #-- END loop over domains. --#
+        
+        # summary.
+        end_dt = datetime.datetime.now()
+        print( "==> News domains processed: " + str( news_domain_count ) )
+        print( "==> News domains matched: " + str( matched_domains_count ) )
+        print( "==> Total domains updated: " + str( total_match_count ) )
+        print( "==> Started at: " + str( start_dt ) )
+        print( "==> Ended at: " + str( end_dt ) )
+        print( "==> Duration: " + str( end_dt - start_dt ) )
+        
+        return status_OUT
+    
+    #-- END method mark_domains_as_news  
+
+
 #-- END class Data_Creator --#
