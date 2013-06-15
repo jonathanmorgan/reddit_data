@@ -137,6 +137,7 @@ for state_bold_tag in state_bold_tag_list:
                     slash_index = ""
                     current_domain_path = ""
                     current_description = ""
+                    current_city = ""
                     current_source = ""
                     current_source_details = ""
                     current_domain_type = ""
@@ -145,6 +146,15 @@ for state_bold_tag in state_bold_tag_list:
                     
                     # description
                     current_description = station_name
+                    
+                    # split description into an array on spaces.
+                    station_name_list = station_name.split()
+                    
+                    # remove the last item
+                    station_name_list.pop()
+                    
+                    # convert back to string.
+                    current_city = " ".join( station_name_list )
                     
                     # domain name
                     current_domain_name = station_url
@@ -242,7 +252,7 @@ for state_bold_tag in state_bold_tag_list:
                     #current_domain_instance.rank = current_rank
                     current_domain_instance.state = state_name
                     #current_domain_instance.county = ""
-                    #current_domain_instance.city = ""
+                    current_domain_instance.city = current_city
                     #current_domain_instance.zip_code = ""
             
                     # save
