@@ -28,6 +28,7 @@ state_url = ""
 # skip 'Texas'.
 #states_to_process_list = [ 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming', 'American Samoa', 'Federated States of Micronesia', 'Guam', 'Northern Mariana Islands', 'Puerto Rico', 'US Virgin Islands' ]
 states_to_process_list = []
+do_update_existing = True
 
 # processing a state's page.
 state_html = None
@@ -37,6 +38,7 @@ state_paper_li = None
 paper_name = ""
 paper_url = ""
 current_domain_instance = None
+domain_rs = None
 
 # fields we collect per domain.
 bs_helper = None
@@ -151,8 +153,32 @@ for state_li in state_li_list:
             current_domain_type = reddit_data.models.Reference_Domain.DOMAIN_TYPE_NEWS
             current_is_news = True
             
-            # make Reference_Domain instance
-            current_domain_instance = reddit_data.models.Reference_Domain()
+            # get Reference_Domain instance
+            
+            # update existing?
+            if ( do_update_existing == True ):
+
+                try:
+    
+                    # first, try looking up existing domain.
+                    domain_rs = reddit_data.models.Reference_Domain.objects.filter( source = current_source )
+                    domain_rs = domain_rs.filter( domain_name = current_domain_name )
+                    domain_rs = domain_rs.filter( domain_path = current_domain_path )
+                    current_domain_instance = domain_rs.get( description = current_description )
+                
+                except:
+                
+                    # No matching row.  Create new instance.
+                    current_domain_instance = reddit_data.models.Reference_Domain()
+                    
+                #-- END attempt to get existing row. --#
+
+            else:
+            
+                # not updating.  Just create new instance.
+                current_domain_instance = reddit_data.models.Reference_Domain()
+            
+            #-- END check to see if we update existing. --#
             
             # set values
             current_domain_instance.domain_name = current_domain_name
@@ -165,6 +191,10 @@ for state_li in state_li_list:
             current_domain_instance.is_news = current_is_news
             #current_domain_instance.is_multimedia = False
             #current_domain_instance.rank = current_rank
+            current_domain_instance.state = state_name
+            #current_domain_instance.county = ""
+            #current_domain_instance.city = ""
+            #current_domain_instance.zip_code = ""
     
             # save
             current_domain_instance.save()

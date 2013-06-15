@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 import reddit_data.models
 
 # declare variables
+do_update_existing = True
 
 # processing state list.
 state_name = ""
@@ -143,8 +144,31 @@ for state_paper_li in state_paper_list:
     current_domain_type = reddit_data.models.Reference_Domain.DOMAIN_TYPE_NEWS
     current_is_news = True
     
-    # make Reference_Domain instance
-    current_domain_instance = reddit_data.models.Reference_Domain()
+    # get Reference_Domain instance
+
+    # update existing?
+    if ( do_update_existing == True ):
+
+        try:
+
+            # first, try looking up existing domain.
+            domain_rs = reddit_data.models.Reference_Domain.objects.filter( source = current_source )
+            domain_rs = domain_rs.filter( domain_name = current_domain_name )
+            current_domain_instance = domain_rs.get( domain_path = current_domain_path )
+        
+        except:
+        
+            # No matching row.  Create new instance.
+            current_domain_instance = reddit_data.models.Reference_Domain()
+            
+        #-- END attempt to get existing row. --#
+
+    else:
+    
+        # not updating.  Just create new instance.
+        current_domain_instance = reddit_data.models.Reference_Domain()
+    
+    #-- END check to see if we update existing. --#
     
     # set values
     current_domain_instance.domain_name = current_domain_name
@@ -157,6 +181,10 @@ for state_paper_li in state_paper_list:
     current_domain_instance.is_news = current_is_news
     #current_domain_instance.is_multimedia = False
     #current_domain_instance.rank = current_rank
+    current_domain_instance.state = state_name
+    #current_domain_instance.county = ""
+    #current_domain_instance.city = ""
+    #current_domain_instance.zip_code = ""
 
     # save
     current_domain_instance.save()

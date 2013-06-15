@@ -69,6 +69,10 @@ class Reference_Domain( models.Model ):
     is_news = models.BooleanField( blank = True, default = False )
     is_multimedia = models.BooleanField( blank = True, default = False )
     rank = models.IntegerField( null = True, blank = True )
+    state = models.CharField( max_length = 255, null = True, blank = True )
+    county = models.CharField( max_length = 255, null = True, blank = True )
+    city = models.CharField( max_length = 255, null = True, blank = True )
+    zip_code = models.CharField( max_length = 255, null = True, blank = True )
     create_date = models.DateTimeField( auto_now_add = True )
     last_update = models.DateTimeField( auto_now = True )
 

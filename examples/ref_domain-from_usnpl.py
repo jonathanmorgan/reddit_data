@@ -63,7 +63,10 @@ state_list_url = "http://www.usnpl.com/index_radio.php"
 state_list_html = urllib2.urlopen( state_list_url )
 
 # create beautifulsoup instance for state list.
-state_list_bs = BeautifulSoup( state_list_html, "html.parser" )
+#bs_parser = "html.parser"
+#bs_parser = "lxml"
+bs_parser = "html5lib"
+state_list_bs = BeautifulSoup( state_list_html, bs_parser )
 
 # get list of state URLs.
 
