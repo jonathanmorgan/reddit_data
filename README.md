@@ -44,6 +44,10 @@ This code interacts with data from reddit in a database to build data that can b
 
         git clone https://github.com/jonathanmorgan/django_time_series.git
     
+- pull in the python django\_reference\_data code
+
+        git clone https://github.com/jonathanmorgan/django_reference_data.git
+    
 - pull in the python reddit\_data code
 
         git clone https://github.com/jonathanmorgan/reddit_data.git
@@ -62,7 +66,7 @@ This code interacts with data from reddit in a database to build data that can b
 
 - configure the database in settings.py - for database configuration, this code assumes that you set up the database as directed in reddit\_collect's README.md file.
 
-- in settings.py, add 'django\_time\_series' and 'reddit\_data' to the INSTALLED\_APPS list.  Example:
+- in settings.py, add 'django\_time\_series', 'django\_reference\_data', and 'reddit\_data' to the INSTALLED\_APPS list.  Example:
     
         INSTALLED_APPS = (
             'django.contrib.auth',
@@ -78,12 +82,14 @@ This code interacts with data from reddit in a database to build data that can b
             'south',
             'reddit_collect',
             'django_time_series',
+            'django_reference_data',
             'reddit_data',
         )
 
 - once you get settings.py configured, then run the following in your site directory to create database tables, set up indexes, etc.:
 
         python manage.py migrate django_time_series
+        python manage.py migrate django_reference_data
         python manage.py migrate reddit_data
 
 ## Usage

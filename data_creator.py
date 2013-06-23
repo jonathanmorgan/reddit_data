@@ -50,6 +50,9 @@ from python_utilities.database.MySQLdb_helper import MySQLdb_Helper
 # Time Series Data imports
 import django_time_series.models
 
+# Django reference data (news domains)
+import django_reference_data.models
+
 
 #================================================================================
 # class RedditCollector
@@ -759,7 +762,7 @@ class Data_Creator( object ):
         start_dt = datetime.datetime.now()
         
         # get list of news domains from reference domain table.
-        news_domains_rs = reddit_data.models.Reference_Domain.objects.filter( domain_type = reddit_data.models.Reference_Domain.DOMAIN_TYPE_NEWS )
+        news_domains_rs = django_reference_data.models.Reference_Domain.objects.filter( domain_type = django_reference_data.models.Reference_Domain.DOMAIN_TYPE_NEWS )
         
         # loop over the domains.
         news_domain_count = news_domains_rs.count()
