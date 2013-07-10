@@ -135,6 +135,10 @@ Then, there are numerous examples in /examples you can use to try out different 
 - subreddit_rows_from_posts.py - create subreddit instances from posts, then put subreddit model instance IDs back into the posts so the relations are available to django.
 - subreddit_time_series.py - create per-subreddit time series data from a set of reddit posts.
 
+## Thanks!
+
+This work has been supported by the National Science Foundation under Grant IIS-0968495.
+
 ## License:
 
 Copyright 2012, 2013 Jonathan Morgan
