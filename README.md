@@ -127,13 +127,52 @@ If you don't use manage.py to open a shell (or if you are making a shell script 
 
 Then, there are numerous examples in /examples you can use to try out different ways of making reddit data:
 
-- domain_create_rows_from_posts.py - create domain instances from posts, then put domain model instance IDs back into the posts so the relations are available to django.
-- domain_time_series.py - create per-domain time series data from a set of reddit posts.
-- mysql_helper_test.py - basic - how to use mysql_helper.
-- subreddit_filter.py - filters time series data based on a text match, then updates filter flag on time series records to record the filter matches.
-- subreddit_lookup.py - basic - lookup subreddit time series data using django.
-- subreddit_rows_from_posts.py - create subreddit instances from posts, then put subreddit model instance IDs back into the posts so the relations are available to django.
-- subreddit_time_series.py - create per-subreddit time series data from a set of reddit posts.
+- domain\_create\_rows\_from\_posts.py - create domain instances from posts, then put domain model instance IDs back into the posts so the relations are available to django.
+- domain\_mark\_is\_news.py - uses django\_reference\_data's ReferenceDomain model, populated with news domains from fixture django\_reference\_data/fixtures/reference\_domains\_news.json
+- domain\_time\_series.py - create per-domain time series data from a set of reddit posts.
+- mysql\_helper\_test.py - basic - how to use mysql_helper.
+- subreddit\_filter.py - filters time series data based on a text match, then updates filter flag on time series records to record the filter matches.
+- subreddit\_lookup.py - basic - lookup subreddit time series data using django.
+- subreddit\_rows\_from\_posts.py - create subreddit instances from posts, then put subreddit model instance IDs back into the posts so the relations are available to django.
+- subreddit\_time\_series.py - create per-subreddit time series data from a set of reddit posts.
+
+### Mark reddit posts as news or not
+
+- make sure to install the django\_reference\_data application.
+- clear out the django\_reference\_data\_reference\_domain table, then load the fixture django\_reference\_data/fixtures/reference\_domains\_news.json:
+
+        python manage.py loaddata django_reference_data/fixtures/reference_domains_news.json
+        
+- create reddit\_collect Domain rows for all domains in your posts (see django\_reference\_data/examples/domain\_create\_rows\_from\_posts.py)
+    - this doesn't happen automatically when you collect reddit posts (to maximize performance).
+    - this process creates the Domain records, then associates them with Reddit Posts and time series data that reference each domain.
+    - this process can be re-run multiple times
+- per the file reddit\_data/examples/domain\_mark\_is\_news.py, run the method to match Domains with news domains in reference data, and mark matches as "is\_news".
+- update one of the filters on each post (filter\_2 is updated below) based on the is_news flag of its associated domain.  SQL:
+
+        /* first, run SELECT to see how many matches there are */
+        /* SELECT * */
+        SELECT COUNT( * )
+        FROM reddit_collect_post rcp, reddit_collect_domain rcd
+        WHERE rcp.domain_id = rcd.id
+            AND rcd.is_news = 1;
+            
+        /* more detailed spot-check */
+        SELECT rcp.id, rcp.domain_name, rcp.domain_id, rcd.id, rcd.name
+        FROM reddit_collect_post rcp, reddit_collect_domain rcd
+        WHERE rcp.domain_id = rcd.id
+            AND rcd.is_news = 1
+        LIMIT 25000, 100;
+            
+        /* if all looks OK, update */
+        UPDATE reddit_collect_post rcp, reddit_collect_domain rcd
+        SET rcp.filter_2 = 1
+        WHERE rcp.domain_id = rcd.id
+            AND rcd.is_news = 1;
+
+### Create time series data tracking traits of subreddits over time
+
+### Create time series data tracking traits of domains over time
 
 ## Thanks!
 

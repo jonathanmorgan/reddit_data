@@ -104,6 +104,22 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
 
 
     #============================================================================
+    # meta class
+    #============================================================================
+    
+    
+    '''
+    class Meta:
+        
+        # multi-column indexes
+        index_together = [
+            [ "start_date", "end_date", "time_period_category", "time_period_type" ],
+        ]
+
+    #-- END Meta class --#
+    '''
+    
+    #============================================================================
     # class methods
     #============================================================================
 
