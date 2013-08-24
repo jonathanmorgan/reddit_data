@@ -147,7 +147,11 @@ Then, there are numerous examples in /examples you can use to try out different 
     - this doesn't happen automatically when you collect reddit posts (to maximize performance).
     - this process creates the Domain records, then associates them with Reddit Posts and time series data that reference each domain.
     - this process can be re-run multiple times
-- per the file reddit\_data/examples/domain\_mark\_is\_news.py, run the method to match Domains with news domains in reference data, and mark matches as "is\_news".
+- per the file reddit\_data/examples/domain\_mark\_is\_news.py, run the `mark_domains_as_news()` method to match reddit\_data Domains with news domains in reference data, and mark matches in the reddit\_data Domain set as `is_news = True`.
+- now to update posts that have URLs that reference news domains.  To start, if you are making iterative changes to your domains, before you filter posts, clear out the flag you are setting each time you set flags, in case you changed the classification of any domains in such a way that posts that matched before will no longer match.
+
+        UPDATE reddit_collect_post SET filter_2 = 0 WHERE filter_2 = 1;
+
 - update one of the filters on each post (filter\_2 is updated below) based on the is_news flag of its associated domain.  SQL:
 
         /* first, run SELECT to see how many matches there are */
