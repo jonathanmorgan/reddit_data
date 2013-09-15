@@ -42,7 +42,9 @@ import reddit_data.models
 # python_utilities
 # from python_utilities.rate_limited.basic_rate_limited import BasicRateLimited
 from python_utilities.strings.string_helper import StringHelper
-from python_utilities.database.MySQLdb_helper import MySQLdb_Helper
+from python_utilities.database.database_helper_factory import Database_Helper_Factory
+#from python_utilities.database.MySQLdb_helper import MySQLdb_Helper
+
 
 # ReddiWrapper
 # from reddiwrap.ReddiWrap import ReddiWrap
@@ -324,7 +326,12 @@ class Data_Creator( object ):
     #-- END method create_domains_from_posts() --#
     
     
-    def create_subreddits_from_posts( self, include_all_IN = False, limit_IN = -1, *args, **kwargs ):
+    def create_subreddits_from_posts( self,
+                                      include_all_IN = False,
+                                      limit_IN = -1,
+                                      update_related_IN = True,
+                                      *args,
+                                      **kwargs ):
     
         '''
         Uses an SQL query to get all subreddit names and IDs from posts in the
@@ -333,7 +340,8 @@ class Data_Creator( object ):
             reference the subreddit with its ID.
             
         Parameters:
-        - include_all_IN - Boolean, if True, includes all subreddits. If false, only includes those where post rows don't already have a subreddit_id.  Defaults to True (includes all).
+        - include_all_IN - Boolean.  Defaults to False.  If True, includes all subreddits. If false, only processes subreddits in posts that don't yet have a subreddit ID.
+        - update_related_IN - Boolean.  Defaults to True.  If True, related rows are updated for each subreddit we find.  If False, subreddit rows are created, but related rows are not updated with the relational subreddit ID for their subreddit.
         - limit_IN - integer limit on number of subreddits to process.  If less than or equal to 0, does not limit.  Defaults to -1.
 
         Preconditions: Expects to be run on reddit_collect databases where posts
@@ -431,7 +439,7 @@ class Data_Creator( object ):
             try:
             
                 # lookup to see if subreddit already in database.
-                subreddit_instance = reddit_collect.models.Subreddit.objects.get( reddit_full_id__iexact = subreddit_reddit_id )
+                subreddit_instance = reddit_collect.models.Subreddit.objects.get( reddit_full_id__iexact = subreddit_id )
             
                 # already in database.  Move on.    
             
@@ -462,19 +470,24 @@ class Data_Creator( object ):
             # got an ID?
             if ( ( subreddit_model_id ) and ( subreddit_model_id != None ) and ( subreddit_model_id > 0 ) ):
             
-                # we do.  Update relation in posts, comments fields.
+                # we do.  Are we updating related?
+                if ( update_related_IN == True ):
                 
-                # UPDATE posts
-                db_write_cursor.execute( "UPDATE `reddit_collect_post` SET subreddit_id = %s WHERE subreddit_reddit_id = %s;", ( subreddit_model_id, subreddit_id ) )
+                    # Update relation in posts, comments fields.
                 
-                # UPDATE comments
-                db_write_cursor.execute( "UPDATE `reddit_collect_comment` SET subreddit_id = %s WHERE subreddit_reddit_id = %s;", ( subreddit_model_id, subreddit_id ) )
-
-                # UPDATE subreddit time-series data
-                db_write_cursor.execute( "UPDATE `reddit_data_subreddit_time_series_data` SET subreddit_id = %s WHERE subreddit_reddit_id = %s;", ( subreddit_model_id, subreddit_id ) )
-
-                # commit changes
-                db_conn.commit()
+                    # UPDATE posts
+                    db_write_cursor.execute( "UPDATE `reddit_collect_post` SET subreddit_id = %s WHERE subreddit_reddit_id = %s;", ( subreddit_model_id, subreddit_id ) )
+                    
+                    # UPDATE comments
+                    db_write_cursor.execute( "UPDATE `reddit_collect_comment` SET subreddit_id = %s WHERE subreddit_reddit_id = %s;", ( subreddit_model_id, subreddit_id ) )
+    
+                    # UPDATE subreddit time-series data
+                    db_write_cursor.execute( "UPDATE `reddit_data_subreddit_time_series_data` SET subreddit_id = %s WHERE subreddit_reddit_id = %s;", ( subreddit_model_id, subreddit_id ) )
+    
+                    # commit changes
+                    db_conn.commit()
+                    
+                #-- END check to see if we are updating. --#
             
             #-- END check to see if model ID --#
             
@@ -730,9 +743,17 @@ class Data_Creator( object ):
     def db_initialize_mysql( self, db_host_IN = "localhost", db_port_IN = 3306, db_username_IN = "", db_password_IN = "", db_database_IN = "" ):
         
         # instance variables
-        self.my_db_helper = MySQLdb_Helper( db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
+        self.db_initialize( Database_Helper_Factory.DATABASE_TYPE_MYSQLDB, db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
         
     #-- END method db_initialize_mysql() --#
+
+
+    def db_initialize( self, db_type_IN = "", db_host_IN = "localhost", db_port_IN = -1, db_username_IN = "", db_password_IN = "", db_database_IN = "" ):
+        
+        # instance variables
+        self.my_db_helper = Database_Helper_Factory.get_database_helper( db_type_IN, db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
+        
+    #-- END method db_initialize() --#
 
 
     def mark_domains_as_news( self, *args, **kwargs ):

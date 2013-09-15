@@ -1,5 +1,6 @@
 # imports
 from reddit_data.data_creator import Data_Creator
+from python_utilities.database.database_helper_factory import Database_Helper_Factory
 
 # create Data_Creator instance
 my_data_creator = Data_Creator()
@@ -12,7 +13,8 @@ my_data_creator = Data_Creator()
 #db_database = ""
 
 # initialize the database.
-my_data_creator.db_initialize_mysql( db_host, db_port, db_username, db_password, db_database )
+#my_data_creator.db_initialize_mysql( db_host, db_port, db_username, db_password, db_database )
+my_data_creator.db_initialize( Database_Helper_Factory.DATABASE_TYPE_MYSQLDB, db_host, db_port, db_username, db_password, db_database )
 
 # turn on debug
 my_data_creator.debug_flag = True

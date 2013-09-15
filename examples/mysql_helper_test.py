@@ -8,6 +8,11 @@ import python_utilities.database.MySQLdb_helper
 #db_database = ""
 
 test_helper = python_utilities.database.MySQLdb_helper.MySQLdb_Helper( db_username_IN = db_username, db_password_IN = db_password, db_database_IN = db_database )
+
+# OR
+from python_utilities.database.database_helper_factory import Database_Helper_Factory
+test_helper = Database_Helper_Factory.get_database_helper( Database_Helper_Factory.DATABASE_TYPE_MYSQLDB, db_username_IN = db_username, db_password_IN = db_password, db_database_IN = db_database )
+
 test_conn = test_helper.get_connection()
 test_cursor = test_helper.get_cursor()
 test_query = "SELECT subreddit_name, subreddit_reddit_id, COUNT( * ) AS post_count FROM reddit_collect_post WHERE created_utc_dt BETWEEN '2013-04-15 00:00:00' AND '2013-04-15 01:00:00' GROUP BY subreddit_name;"

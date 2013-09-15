@@ -25,16 +25,20 @@ along with http://github.com/jonathanmorgan/reddit_data.  If not, see
 # base python
 import datetime
 import gc
+import sys
 
 # django
 from django.db import models
 import django.utils.encoding
 from django.utils.encoding import python_2_unicode_compatible
 
+# django_time_series
+from django_time_series.models import AbstractTimeSeriesDataModel
+
 # python_utilities
 #from python_utilities.research.time_series_data import AbstractTimeSeriesDataModel
-from django_time_series.models import AbstractTimeSeriesDataModel
-from python_utilities.database.MySQLdb_helper import MySQLdb_Helper
+from python_utilities.database.database_helper_factory import Database_Helper_Factory
+#from python_utilities.database.MySQLdb_helper import MySQLdb_Helper
 
 # reddit_collect
 import reddit_collect.models
@@ -78,6 +82,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
     subreddit = models.ForeignKey( reddit_collect.models.Subreddit, null = True, blank = True )
     subreddit_name = models.TextField( null = True, blank = True )
     subreddit_reddit_id = models.CharField( max_length = 255, null = True, blank = True, db_index = True )
+    subreddit_reddit_full_id = models.CharField( max_length = 255, null = True, blank = True, db_index = True )
     post_count = models.IntegerField( null = True, blank = True )
     self_post_count = models.IntegerField( null = True, blank = True )
     over_18_count = models.IntegerField( null = True, blank = True )
@@ -128,11 +133,20 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
     def db_initialize_mysql( cls, db_host_IN = "localhost", db_port_IN = 3306, db_username_IN = "", db_password_IN = "", db_database_IN = "" ):
         
         # instance variables
-        cls.my_db_helper = MySQLdb_Helper( db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
+        cls.db_initialize( Database_Helper_Factory.DATABASE_TYPE_MYSQLDB, db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
         
-    #-- END class method db_initialize_mysql() --#
+    #-- END method db_initialize_mysql() --#
 
-    
+
+    @classmethod
+    def db_initialize( cls, db_type_IN = "", db_host_IN = "localhost", db_port_IN = -1, db_username_IN = "", db_password_IN = "", db_database_IN = "" ):
+        
+        # instance variables
+        cls.my_db_helper = Database_Helper_Factory.get_database_helper( db_type_IN, db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
+        
+    #-- END method db_initialize() --#
+
+
     @classmethod
     def filter_data_on_text( cls,
                      start_dt_IN,
@@ -210,6 +224,10 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         current_instance = None
         filter_column_name = ""
         match_count_column_name = ""
+
+        # exception handling
+        exception_message = ""
+        exception_status = ""
 
         # start time.        
         started_at_dt = datetime.datetime.now()
@@ -349,15 +367,14 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                                 except Exception as e:
                                     
                                     # error saving.  Probably encoding error.
-                
-                                    # get exception details:
-                                    exception_type, exception_value, exception_traceback = sys.exc_info()
-                                    print( "====> In " + me + "() - bulk_create() threw exception, processing comments for post " + str( current_post.id ) + " ( reddit ID: " + current_post.reddit_id + " ); count of comments being bulk created = " + str( django_bulk_create_count ) )
-                                    print( "      - args = " + str( e.args ) )
-                                    print( "      - type = " + str( exception_type ) )
-                                    print( "      - value = " + str( exception_value ) )
-                                    print( "      - traceback = " + str( exception_traceback ) )
                                     
+                                    # process the exception
+                                    exception_message = "ERROR - Exception caught in " + me + "():  save() processing filter for post " + str( current_post.id ) + " ( reddit ID: " + current_post.reddit_id + " )"
+                                    exception_status = cls.process_exception( exception_IN = e, message_IN = exception_message, print_details_IN = True )
+                                    
+                                    # set status to description of exception
+                                    status_OUT = exception_status
+                
                                     # send email to let me know this crashed?
                 
                                     # throw exception?
@@ -430,31 +447,38 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
 
     @classmethod
     def lookup_records( cls,
-                        subreddit_name_IN = "",
-                        subreddit_reddit_id_IN = "",
+                        original_name_IN = "",
+                        original_id_IN = "",
                         start_dt_IN = None,
                         end_dt_IN = None,
                         time_period_type_IN = "",
                         time_period_category_IN = "",
+                        time_period_index_IN = -1,
+                        subreddit_name_IN = "",
+                        subreddit_reddit_id_IN = "",
+                        subreddit_reddit_full_id_IN = "",
                         *args,
                         **kwargs ):
 
         '''
         Accepts a subreddit name and ID, start and end datetime, time period
-           type, and time period label.  Uses these values to filter time-series
-           records.  If you are working with existing time-series records
-           created with make_data, to make it more likely you'll get matches,
-           pass the same values to these parameters that you did when you created
-           the data (so same time period type, time period label, start and
-           end date of the period).
+           type, and time period category.  Uses these values to filter
+           time-series records.  If you are working with existing time-series 
+           records created with make_data, to make it more likely you'll get
+           matches, pass the same values to these parameters that you did when
+           you created the data (so same time period type, time period category,
+           time period index, start and end date of the period, and subreddit
+           name or full ID).
                     
         Parameters:
         - subreddit_name_IN - name of subreddit we are trying to find time-series record(s) for.
-        - subreddit_reddit_id_IN - name of subreddit we are trying to find time-series record(s) for.
+        - subreddit_reddit_id_IN - ID of subreddit we are trying to find time-series record(s) for (without prefix of "t5_".
+        - subreddit_reddit_full_id_IN - full ID of subreddit we are trying to find time-series record(s) for (with prefix "t5_").
         - start_dt_IN - datetime.datetime instance of date and time on which you want to start deriving time-series data.
         - end_dt_IN - datetime.datetime instance of date and time on which you want to stop deriving time-series data.
         - time_period_type_IN - (optional) time period type value you want stored in each time-series record.  Defaults to empty string.
         - time_period_category_IN - (optional) category used in labeling.  If set, this was stored in time_period_category, appended to the front of an integer counter that counts up each time period, which was then stored in time_period_label.
+        - time_period_index_IN - (optional) index to keep track of time periods within a category.  Generated values are non-zero, so only included in filter if value is greater than 0.
         '''
         
         # return reference
@@ -463,7 +487,13 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         # declare variables.
         
         # start out lookup by using parent to lookup for all shared fields.
-        rs_OUT = super( Subreddit_Time_Series_Data, cls ).lookup_records( subreddit_name_IN, subreddit_reddit_id_IN, start_dt_IN, end_dt_IN, time_period_type_IN, time_period_category_IN )
+        rs_OUT = super( Subreddit_Time_Series_Data, cls ).lookup_records( original_name_IN = original_name_IN,
+                                                                          original_id_IN = original_id_IN,
+                                                                          start_dt_IN = start_dt_IN,
+                                                                          end_dt_IN = end_dt_IN,
+                                                                          time_period_type_IN = time_period_type_IN,
+                                                                          time_period_category_IN = time_period_category_IN,
+                                                                          time_period_index_IN = time_period_index_IN )
         
         # for each parameter, check for a non-empty value, if present, filter.
         
@@ -479,7 +509,14 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         
             rs_OUT = rs_OUT.filter( subreddit_reddit_id__iexact = subreddit_reddit_id_IN )
         
-        #-- END check for subreddit reddit ID name --#
+        #-- END check for subreddit reddit ID --#
+        
+        # subreddit_reddit_full_id_IN
+        if ( ( subreddit_reddit_full_id_IN ) and ( subreddit_reddit_full_id_IN != "" ) ):
+        
+            rs_OUT = rs_OUT.filter( subreddit_reddit_id__iexact = subreddit_reddit_full_id_IN )
+        
+        #-- END check for subreddit reddit full ID --#
         
         return rs_OUT
 
@@ -487,7 +524,19 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
     
 
     @classmethod
-    def make_data( cls, start_dt_IN, end_dt_IN, interval_td_IN, time_period_type_IN = "", time_period_category_IN = "", aggregate_counter_start_IN = 0, include_filters_IN = True, *args, **kwargs ):
+    def make_data( cls,
+                   start_dt_IN,
+                   end_dt_IN,
+                   interval_td_IN,
+                   time_period_type_IN = "",
+                   time_period_category_IN = "",
+                   aggregate_counter_start_IN = 0,
+                   include_filters_IN = True,
+                   update_existing_IN = True,
+                   do_batch_insert_IN = True,
+                   output_details_IN = False,
+                   *args,
+                   **kwargs ):
     
         '''
         Accepts a start and end datetime, the interval you want captured in time-
@@ -514,6 +563,8 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         - time_period_category_IN - (optional) label to use in labeling.  If set, this is appended to the front of an integer counter that counts up each time period, is stored in time_period_label.  If not set, the integer time period counter is the only thing stored in time period label.
         - aggregate_counter_start_IN - (optional) value you want aggregate counter to begin at for this set of data.  This lets you track increasing time-series across labels (before - 1 to 366 - and after - 367 and up - for instance).
         - include_filters_IN - (optional) Boolean - True if you want to use the posts' filter fields to set the time series values, False if you want to set them separately.  Defaults to True.
+        - update_existing_IN - (optional) Boolean - True if you want to update existing records.  False if not.  Defaults to True.  If you are running for the first time on an empty database, set to False, and it should run more quickly.
+        - do_batch_insert_IN = (optional) Boolean - True if you want to do batch insert, False if you want to save each new record one at a time.  Defaults to True.  If you choose to update existing, defaults to False.
         '''
     
         # return reference
@@ -534,7 +585,9 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         current_row = None
         current_subreddit_name = ""
         current_subreddit_id = ""
+        current_subreddit_full_id = ""
         current_subreddit_post_count = -1
+        subreddit_match_rs = None
         current_instance = None
         subreddit_instance = None
         bulk_create_list = None
@@ -542,8 +595,31 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         total_created_count = -1
         aggregate_counter = -1
         
+        # update control
+        update_existing = False
+        do_batch_insert = False
+        
+        # exception handling
+        exception_helper = None
+        exception_message = ""
+        exception_status = ""
+        
+        # Set control variables from input parameters.
+        
         # Include filters?
         include_filters = include_filters_IN
+        
+        # do batch insert?
+        do_batch_insert = do_batch_insert_IN
+        
+        # update existing?
+        update_existing = update_existing_IN
+        if ( ( update_existing ) and ( update_existing != None ) and ( update_existing == True ) ):
+        
+            # yes - no batch insert.
+            do_batch_insert = False
+        
+        #-- END check to see if updating existing --#
         
         # make sure we have start date, end date, and interval.
         if ( ( start_dt_IN ) and ( start_dt_IN != None ) ):
@@ -552,7 +628,11 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
             
                 if ( ( interval_td_IN ) and ( interval_td_IN != None ) ):
 
-                    print( "In " + me + "() [" + datetime.datetime.now().strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "] - category: '" + time_period_category_IN + "'; start dt: " + start_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end dt: " + end_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; interval: " + str( interval_td_IN ) )
+                    if ( output_details_IN == True ):
+
+                        print( "In " + me + "() [" + datetime.datetime.now().strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "] - category: '" + time_period_category_IN + "'; start dt: " + start_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end dt: " + end_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; interval: " + str( interval_td_IN ) + "; filter?: " + str( include_filters ) + "; update?: " + str( update_existing ) + "; batch?: " + str( do_batch_insert ) )
+
+                    #-- END check to see if we should output details --#
 
                     # create database connection - get database helper
                     mysqldb = cls.my_db_helper
@@ -587,7 +667,11 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                     #   the overall end datetime.
                     while ( current_end_dt <= end_dt_IN ):
                     
-                        print( "- At top of time period loop [" + datetime.datetime.now().strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "] - start dt: " + current_start_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end dt: " + current_end_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) )
+                        if ( output_details_IN == True ):
+
+                            print( "- At top of time period loop [" + datetime.datetime.now().strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "] - start dt: " + current_start_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end dt: " + current_end_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) )
+
+                        #-- END check to see if we should output details --#
                     
                         # increment counters
                         time_period_counter += 1
@@ -663,10 +747,17 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             # get values
                             current_subreddit_name = current_row[ 'subreddit_name' ]
                             current_subreddit_id = current_row[ 'subreddit_reddit_id' ]
+                            current_subreddit_full_id = current_row[ 'subreddit_reddit_id' ]
                             current_subreddit_post_count = current_row[ 'post_count' ]
                             
-                            # create new instance of this class.
-                            current_instance = cls()
+                            # ! get instance of this class
+                            current_instance = cls.get_instance( original_id_IN = current_subreddit_full_id,
+                                                                 start_dt_IN = start_dt_IN,
+                                                                 end_dt_IN = end_dt_IN,
+                                                                 time_period_type_IN = time_period_type_IN,
+                                                                 time_period_category_IN = time_period_category_IN,
+                                                                 time_period_index_IN = time_period_counter,
+                                                                 update_existing_IN = update_existing )
                             
                             # populate values.
                             current_instance.start_date = current_start_dt
@@ -679,7 +770,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             #    period counter.
                             time_period_value = str( time_period_counter )
                             
-                            # got a label?
+                            # got a category?
                             if ( ( time_period_category_IN ) and ( time_period_category_IN != "" ) ):
                             
                                 # yes - add to the beginning.
@@ -706,8 +797,9 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             # current_instance.subreddit = models.ForeignKey( Subreddit, null = True, blank = True )
                             current_instance.original_name = current_subreddit_name
                             current_instance.subreddit_name = current_subreddit_name
-                            current_instance.original_id = current_subreddit_id
+                            current_instance.original_id = current_subreddit_full_id
                             current_instance.subreddit_reddit_id = current_subreddit_id
+                            current_instance.subreddit_reddit_full_id = current_subreddit_full_id
                             current_instance.post_count = current_subreddit_post_count
                             current_instance.self_post_count = current_row[ 'self_post_count' ]
                             current_instance.over_18_count = current_row[ 'over_18_count' ]
@@ -773,40 +865,54 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             
                             #-- END check to see if we include filters --#
                             
-                            # Add to list of instances to bulk save.
-                            bulk_create_list.append( current_instance )                            
+                            # doing batch insert?
+                            if ( do_batch_insert == True ):
+
+                                # yes - Add to list of instances to bulk save.
+                                bulk_create_list.append( current_instance )
+                                
+                            else:
+                            
+                                # no - either updating, or just not doing batch.
+                                current_instance.save()
+                                
+                            #-- END check to see if doing batch insert. --#
                             
                         #-- END loop over subreddit data for this time period. --#
                         
-                        # try/except around saving rows for subreddits with
-                        #    posts in our time period.
-                        try:
-        
-                            # yes.
-                            cls.objects.bulk_create( bulk_create_list )
-                            
-                            # increment total count
-                            bulk_create_count = len( bulk_create_list )
-                            total_created_count += bulk_create_count
+                        # doing batch insert?
+                        if ( do_batch_insert == True ):
 
-                        except Exception as e:
-                            
-                            # error saving.  Probably encoding error.
-        
-                            # get exception details:
-                            exception_type, exception_value, exception_traceback = sys.exc_info()
-                            print( "====> In " + me + ": bulk_create() threw exception, processing comments for period - start date: " + current_start_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end date: " + current_end_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; type:" + time_period_type_IN + "; category:" + time_period_category_IN + "; count of comments being bulk created = " + str( len( bulk_create_list ) ) )
-                            print( "      - args = " + str( e.args ) )
-                            print( "      - type = " + str( exception_type ) )
-                            print( "      - value = " + str( exception_value ) )
-                            print( "      - traceback = " + str( exception_traceback ) )
-                            
-                            # send email to let me know this crashed?
-        
-                            # throw exception?
-                            raise( e )
+                            # try/except around saving rows for subreddits with
+                            #    posts in our time period.
+                            try:
+            
+                                # yes.
+                                cls.objects.bulk_create( bulk_create_list )
                                 
-                        #-- END try/except around saving. --#
+                                # increment total count
+                                bulk_create_count = len( bulk_create_list )
+                                total_created_count += bulk_create_count
+    
+                            except Exception as e:
+                                
+                                # error saving.  Probably encoding error.
+                                
+                                # process the exception
+                                exception_message = "ERROR - Exception caught in " + me + ":  bulk_create() threw exception, making time-series data for period - start date: " + current_start_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end date: " + current_end_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; type:" + time_period_type_IN + "; category:" + time_period_category_IN + "; count of rows being bulk created = " + str( len( bulk_create_list ) )
+                                exception_status = cls.process_exception( exception_IN = e, message_IN = exception_message, print_details_IN = True )
+                                
+                                # set status to description of exception
+                                status_OUT = exception_status
+
+                                # send email to let me know this crashed?
+            
+                                # throw exception?
+                                raise( e )
+                                    
+                            #-- END try/except around saving. --#
+                            
+                        #-- END check to see if we are doing batch insert --#
                         
                         # clear caches, performance stuff, etc.  Try garbage
                         #    collecting, not clearing django cache, to start.
@@ -817,7 +923,16 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         #    all time periods.  Call function to pull in all
                         #    subreddits not already in our data for this time
                         #    period.
-                        cls.make_data_add_missing_rows( current_start_dt, current_end_dt, time_period_type_IN, time_period_category_IN, time_period_counter, aggregate_counter, include_filters_IN )
+                        cls.make_data_add_missing_rows( start_dt_IN = current_start_dt,
+                                                        end_dt_IN = current_end_dt,
+                                                        time_period_type_IN = time_period_type_IN,
+                                                        time_period_category_IN = time_period_category_IN,
+                                                        time_period_index_IN = time_period_counter,
+                                                        aggregate_counter_IN = aggregate_counter,
+                                                        include_filters_IN = include_filters_IN,
+                                                        update_existing_IN = update_existing_IN,
+                                                        do_batch_insert_IN = do_batch_insert_IN,
+                                                        output_details_IN = output_details_IN )
 
                         # increment start and end dt.
                         current_start_dt = current_end_dt
@@ -856,19 +971,22 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                                     end_dt_IN,
                                     time_period_type_IN = "",
                                     time_period_category_IN = "",
-                                    time_period_counter_IN = -1,
+                                    time_period_index_IN = -1,
                                     aggregate_counter_IN = -1,
                                     include_filters_IN = True,
+                                    update_existing_IN = True,
+                                    do_batch_insert_IN = True,
+                                    output_details_IN = False,
                                     *args,
                                     **kwargs ):
     
         '''
-        Accepts a start and end datetime, an optional string time-period label,
-           and the time period identifier/counter.  Uses this information to
-           look for subreddits that are in our data set, but that did not appear
-           within the time period we are looking at.  For each subreddit not
-           present in the current time period, creates a row for that subreddit
-           in the time period with all counts set to 0.  
+        Accepts a start and end datetime, an optional string time-period
+           category, and the time period identifier/counter.  Uses this
+           information to look for subreddits that are in our data set, but that
+           did not appear within the time period we are looking at.  For each
+           subreddit not present in the current time period, creates a row for
+           that subreddit in the time period with all counts set to 0.  
            
         Preconditions: For this to include all sub-reddits in each time period,
            even those that don't have posts in the time period, need to have
@@ -886,9 +1004,11 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         - end_dt_IN - datetime.datetime instance of date and time on which you want to stop deriving time-series data.
         - time_period_type_IN - time period type value you want stored in each time-series record.  Defaults to empty string.
         - time_period_category_IN - label to use in labeling.  If set, this is appended to the front of an integer counter that counts up each time period, is stored in time_period_label.  If not set, the integer time period counter is the only thing stored in time period label.
-        - time_period_counter_IN - time period counter value for this time period.
+        - time_period_index_IN - time_period_index value for this time period.
         - aggregate_counter_IN - aggregate counter value for this time period.
         - include_filters_IN - (optional) Boolean - True if you want to use the posts' filter fields to set the time series values, False if you want to set them separately.  Defaults to True.
+        - update_existing_IN - (optional) Boolean - True if you want to update existing records.  False if not.  Defaults to True.  If you are running for the first time on an empty database, set to False, and it should run more quickly.
+        - do_batch_insert_IN = (optional) Boolean - True if you want to do batch insert, False if you want to save each new record one at a time.  Defaults to True.  If you choose to update existing, defaults to False.
         '''
     
         # return reference
@@ -904,9 +1024,11 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         current_select_sql = ""
         include_filters = True
         result_count = -1
+        row_counter = -1
         current_row = None
         current_subreddit_name = ""
         current_subreddit_id = ""
+        current_subreddit_full_id = ""
         current_subreddit_post_count = -1
         current_instance = None
         subreddit_instance = None
@@ -915,8 +1037,39 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         total_created_count = -1
         aggregate_counter = -1
         
+        # update control
+        update_existing = False
+        do_batch_insert = False
+        
+        # exception handling
+        exception_helper = None
+        exception_message = ""
+        exception_status = ""
+
+        # performance and auditing
+        start_dt = None        
+        end_dt = None
+        add_count = -1
+        existing_count = -1
+        
+        start_dt = datetime.datetime.now()
+        
+        # Set control variables from input parameters.
+        
         # Include filters?
         include_filters = include_filters_IN
+
+        # do batch insert?
+        do_batch_insert = do_batch_insert_IN
+        
+        # update existing?
+        update_existing = update_existing_IN
+        if ( ( update_existing ) and ( update_existing != None ) and ( update_existing == True ) ):
+        
+            # yes - no batch insert.
+            do_batch_insert = False
+        
+        #-- END check to see if updating existing --#
         
         # make sure we have start date, end date, and label.
         if ( ( start_dt_IN ) and ( start_dt_IN != None ) ):
@@ -925,7 +1078,11 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
             
                 if ( ( time_period_category_IN ) and ( time_period_category_IN != None ) and ( time_period_category_IN != "" ) ):
 
-                    print( "In " + me + "() [" + datetime.datetime.now().strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "] - Label: '" + time_period_category_IN + "'; start dt: " + start_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end dt: " + end_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) )
+                    if ( output_details_IN == True ):
+
+                        print( "In " + me + "() [" + datetime.datetime.now().strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "] - Label: '" + time_period_category_IN + "'; start dt: " + start_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end dt: " + end_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; filter?: " + str( include_filters ) + "; update?: " + str( update_existing ) + "; batch?: " + str( do_batch_insert ) )
+
+                    #-- END check to see if output details --#
 
                     # create database connection - get database helper
                     mysqldb = cls.my_db_helper
@@ -952,6 +1109,7 @@ WHERE NOT EXISTS
         AND end_date = '2013-04-01 19:49:00'
         AND time_period_category = 'before'
         AND time_period_type = 'hourly'
+        AND time_period_index = 1
 )
                     '''
                     
@@ -985,19 +1143,35 @@ WHERE NOT EXISTS
                         
                     #-- END check to see if type --#
                         
+                    # index passed in?
+                    if ( ( time_period_index_IN ) and ( time_period_index_IN != None ) and ( time_period_index_IN > 0 ) ):
+                        
+                        # yes.  Check for it.
+                        current_select_sql += "         AND time_period_index = " + time_period_index_IN
+                        
+                    #-- END check to see if type --#
+                        
                     current_select_sql += " )"
                     current_select_sql += " ORDER BY reddit_full_id ASC;"
                     
+                    if ( output_details_IN == True ):
+                        print( "In " + me + "() before executing SQL: query = " + current_select_sql )
+                    #-- END check to see if output details --#
+
                     # execute SQL
                     my_read_cursor.execute( current_select_sql )
                     
+                    if ( output_details_IN == True ):
+                        print( "In " + me + "() after executing SQL." )
+                    #-- END check to see if output details --#
+
                     # ! initialize period and aggregate counters.
                     
-                    # time period counter.
-                    if ( ( time_period_counter_IN ) and ( time_period_counter_IN > 0 ) ):
+                    # time period index (counter).
+                    if ( ( time_period_index_IN ) and ( time_period_index_IN > 0 ) ):
                         
                         # we have a counter to use.
-                        time_period_counter = time_period_counter_IN
+                        time_period_counter = time_period_index_IN
                         
                     else:
                         
@@ -1022,163 +1196,216 @@ WHERE NOT EXISTS
                     # loop over the results, creating a new instance of this
                     #    class for each.
                     result_count = int( my_read_cursor.rowcount )
+                    row_counter = 0
+                    existing_count = 0
                     for i in range( result_count ):
+                    
+                        # increment counter
+                        row_counter += 1
                     
                         # get row.
                         current_row = my_read_cursor.fetchone()
                         
                         # get values
                         current_subreddit_name = current_row[ 'name' ]
-                        current_subreddit_id = current_row[ 'reddit_full_id' ]
+                        current_subreddit_id = current_row[ 'reddit_id' ]
+                        current_subreddit_full_id = current_row[ 'reddit_full_id' ]
                         current_subreddit_post_count = 0
                         
-                        # create new instance of this class.
-                        current_instance = cls()
+                        if ( output_details_IN == True ):
+                            print( "In " + me + "() - row " + str( row_counter ) + " of " + str( result_count ) + " - " + current_subreddit_name + " ( " + current_subreddit_full_id + " )" )
+                        #-- END check to see if output details --#
+    
+                        # ! get instance of this class
+                        current_instance = cls.get_instance( original_id_IN = current_subreddit_full_id,
+                                                             start_dt_IN = start_dt_IN,
+                                                             end_dt_IN = end_dt_IN,
+                                                             time_period_type_IN = time_period_type_IN,
+                                                             time_period_category_IN = time_period_category_IN,
+                                                             time_period_index_IN = time_period_counter,
+                                                             update_existing_IN = update_existing )
+                                                             
+                        # new or existing?
+                        if ( ( current_instance.pk ) and ( current_instance.pk != None ) and ( current_instance.pk > 0 ) ):
                         
-                        # populate values.
-                        current_instance.start_date = start_dt_IN
-                        current_instance.end_date = end_dt_IN
-                        current_instance.time_period_type = time_period_type_IN
-                        current_instance.time_period_index = time_period_counter
-                        current_instance.time_period_category = time_period_category_IN
-
-                        # time period label - starts out with value of time
-                        #    period counter.
-                        time_period_value = str( time_period_counter )
-                        
-                        # got a category?
-                        if ( ( time_period_category_IN ) and ( time_period_category_IN != "" ) ):
-                        
-                            # yes - add to the beginning.
-                            time_period_value = time_period_category_IN + "-" + time_period_value
+                            # existing.  Make a note, move on.
+                            existing_count += 1
                             
-                        #-- END check to see if time-period label. --#
-                        
-                        # got a type?
-                        if ( ( time_period_type_IN ) and ( time_period_type_IN != "" ) ):
-                        
-                            # yes - add to the beginning.
-                            time_period_value = time_period_type_IN + "-" + time_period_value                            
+                            if ( output_details_IN == True ):
+                                print( "---- In " + me + "() - Existing row found ( ID: " + str( current_instance.pk ) + " )." )
+                            #-- END check to see if output details --#
 
-                        #-- END check to see if we have a time period type --#
+                        else:
                         
-                        current_instance.time_period_label = time_period_value
-                        
-                        current_instance.aggregate_index = aggregate_counter
+                            # new.  So, row for this subreddit wasn't already in
+                            #    data set.  Add row for it, set all counts to 0.
+                            add_count += 1
 
-                        #current_instance.filter_type = "" # - place to keep track of different filter types, if you want.  Example: "text_contains"
-                        #current_instance.filter_value = ""
-                        #current_instance.match_value = models.CharField( max_length = 255, null = True, blank = True )
+                            if ( output_details_IN == True ):
+                                print( "---- In " + me + "() - No existing row found." )
+                            #-- END check to see if output details --#
 
-                        # current_instance.subreddit = models.ForeignKey( Subreddit, null = True, blank = True )
-                        current_instance.original_name = current_subreddit_name
-                        current_instance.subreddit_name = current_subreddit_name
-                        current_instance.original_id = current_subreddit_id
-                        current_instance.subreddit_reddit_id = current_subreddit_id
-                        current_instance.post_count = 0
-                        current_instance.self_post_count = 0
-                        current_instance.over_18_count = 0
-                        current_instance.score_average = 0
-                        current_instance.score_min = 0
-                        current_instance.score_max = 0
-                        current_instance.upvotes_average = 0
-                        current_instance.upvotes_min = 0
-                        current_instance.upvotes_max = 0
-                        current_instance.downvotes_average = 0
-                        current_instance.downvotes_min = 0
-                        current_instance.downvotes_max = 0
-                        current_instance.num_comments_average = 0
-                        current_instance.num_comments_min = 0
-                        current_instance.num_comments_max = 0
-
-                        # see if there is a subreddit instance for this ID.
-                        subreddit_instance = None
-                        try:
-                        
-                            # try to get subreddit instance
-                            subreddit_instance = reddit_collect.models.Subreddit.objects.get( reddit_full_id = current_subreddit_id )
+                            # populate values.
+                            current_instance.start_date = start_dt_IN
+                            current_instance.end_date = end_dt_IN
+                            current_instance.time_period_type = time_period_type_IN
+                            current_instance.time_period_index = time_period_counter
+                            current_instance.time_period_category = time_period_category_IN
+    
+                            # time period label - starts out with value of time
+                            #    period counter.
+                            time_period_value = str( time_period_counter )
                             
-                        except:
-                        
-                            # for now, do nothing.
+                            # got a category?
+                            if ( ( time_period_category_IN ) and ( time_period_category_IN != "" ) ):
+                            
+                                # yes - add to the beginning.
+                                time_period_value = time_period_category_IN + "-" + time_period_value
+                                
+                            #-- END check to see if time-period label. --#
+                            
+                            # got a type?
+                            if ( ( time_period_type_IN ) and ( time_period_type_IN != "" ) ):
+                            
+                                # yes - add to the beginning.
+                                time_period_value = time_period_type_IN + "-" + time_period_value                            
+    
+                            #-- END check to see if we have a time period type --#
+                            
+                            current_instance.time_period_label = time_period_value
+                            
+                            current_instance.aggregate_index = aggregate_counter
+    
+                            #current_instance.filter_type = "" # - place to keep track of different filter types, if you want.  Example: "text_contains"
+                            #current_instance.filter_value = ""
+                            #current_instance.match_value = models.CharField( max_length = 255, null = True, blank = True )
+    
+                            # current_instance.subreddit = models.ForeignKey( Subreddit, null = True, blank = True )
+                            current_instance.original_name = current_subreddit_name
+                            current_instance.subreddit_name = current_subreddit_name
+                            current_instance.original_id = current_subreddit_full_id
+                            current_instance.subreddit_reddit_id = current_subreddit_id
+                            current_instance.subreddit_reddit_full_id = current_subreddit_full_id
+                            current_instance.post_count = 0
+                            current_instance.self_post_count = 0
+                            current_instance.over_18_count = 0
+                            current_instance.score_average = 0
+                            current_instance.score_min = 0
+                            current_instance.score_max = 0
+                            current_instance.upvotes_average = 0
+                            current_instance.upvotes_min = 0
+                            current_instance.upvotes_max = 0
+                            current_instance.downvotes_average = 0
+                            current_instance.downvotes_min = 0
+                            current_instance.downvotes_max = 0
+                            current_instance.num_comments_average = 0
+                            current_instance.num_comments_min = 0
+                            current_instance.num_comments_max = 0
+    
+                            # see if there is a subreddit instance for this ID.
                             subreddit_instance = None
-                        
-                        #-- END try/except to look up subreddit model instance. --#
-                        
-                        # got one?
-                        if ( ( subreddit_instance ) and ( subreddit_instance != None ) ):
-                        
-                            # add to current_instance
-                            current_instance.subreddit = subreddit_instance
-                        
-                        #-- END check to see if we have subreddit instance --#
-
-                        # including filters?
-                        if ( include_filters == True ):
+                            try:
                             
-                            # yes. Set fields from query results.
-                            current_instance.filter_1 = 0
-                            current_instance.match_count_1 = 0
-                            current_instance.filter_2 = 0
-                            current_instance.match_count_2 = 0
-                            current_instance.filter_3 = 0
-                            current_instance.match_count_3 = 0
-                            current_instance.filter_4 = 0
-                            current_instance.match_count_4 = 0
-                            current_instance.filter_5 = 0
-                            current_instance.match_count_5 = 0
-                            current_instance.filter_6 = 0
-                            current_instance.match_count_6 = 0
-                            current_instance.filter_7 = 0
-                            current_instance.match_count_7 = 0
-                            current_instance.filter_8 = 0
-                            current_instance.match_count_8 = 0
-                            current_instance.filter_9 = 0
-                            current_instance.match_count_9 = 0
-                            current_instance.filter_10 = 0
-                            current_instance.match_count_10 = 0
+                                # try to get subreddit instance
+                                subreddit_instance = reddit_collect.models.Subreddit.objects.get( reddit_full_id = current_subreddit_id )
+                                
+                            except:
+                            
+                                # for now, do nothing.
+                                subreddit_instance = None
+                            
+                            #-- END try/except to look up subreddit model instance. --#
+                            
+                            # got one?
+                            if ( ( subreddit_instance ) and ( subreddit_instance != None ) ):
+                            
+                                # add to current_instance
+                                current_instance.subreddit = subreddit_instance
+                            
+                            #-- END check to see if we have subreddit instance --#
+    
+                            # including filters?
+                            if ( include_filters == True ):
+                                
+                                # yes. Set fields from query results.
+                                current_instance.filter_1 = 0
+                                current_instance.match_count_1 = 0
+                                current_instance.filter_2 = 0
+                                current_instance.match_count_2 = 0
+                                current_instance.filter_3 = 0
+                                current_instance.match_count_3 = 0
+                                current_instance.filter_4 = 0
+                                current_instance.match_count_4 = 0
+                                current_instance.filter_5 = 0
+                                current_instance.match_count_5 = 0
+                                current_instance.filter_6 = 0
+                                current_instance.match_count_6 = 0
+                                current_instance.filter_7 = 0
+                                current_instance.match_count_7 = 0
+                                current_instance.filter_8 = 0
+                                current_instance.match_count_8 = 0
+                                current_instance.filter_9 = 0
+                                current_instance.match_count_9 = 0
+                                current_instance.filter_10 = 0
+                                current_instance.match_count_10 = 0
+                            
+                            #-- END check to see if we include filters --#
+                            
+                            # doing batch insert?
+                            if ( do_batch_insert == True ):
+    
+                                # yes - Add to list of instances to bulk save.
+                                bulk_create_list.append( current_instance )
+                                
+                            else:
+                            
+                                # no - either updating, or just not doing batch.
+                                current_instance.save()
+                                
+                            #-- END check to see if doing batch insert. --#
                         
-                        #-- END check to see if we include filters --#
-                        
-                        # Add to list of instances to bulk save.
-                        bulk_create_list.append( current_instance )                            
-                        
+                        #-- END check to see if new or existing --#
+
                     #-- END loop over subreddit data for this time period. --#
                     
-                    # try/except around saving rows for subreddits with
-                    #    posts in our time period.
-                    try:
-    
-                        # yes.
-                        cls.objects.bulk_create( bulk_create_list )
-                        
-                        # increment total count
-                        bulk_create_count = len( bulk_create_list )
-                        total_created_count += bulk_create_count
+                    # doing batch insert, and got something to insert?
+                    bulk_create_count = len( bulk_create_list )
+                    if ( ( do_batch_insert == True ) and ( bulk_create_count > 0 ) ):
 
-                    except Exception as e:
-                        
-                        # error saving.  Probably encoding error.
-    
-                        # get exception details:
-                        exception_type, exception_value, exception_traceback = sys.exc_info()
-                        print( "====> In " + me + ": bulk_create() threw exception, processing comments for period - start date: " + start_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end date: " + end_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; type:" + time_period_type_IN + "; category:" + time_period_category_IN + "; count of comments being bulk created = " + str( len( bulk_create_list ) ) )
-                        print( "      - args = " + str( e.args ) )
-                        print( "      - type = " + str( exception_type ) )
-                        print( "      - value = " + str( exception_value ) )
-                        print( "      - traceback = " + str( exception_traceback ) )
-                        
-                        # send email to let me know this crashed?
-    
-                        # throw exception?
-                        raise( e )
+                        # try/except around saving rows for subreddits with
+                        #    posts in our time period.
+                        try:
+        
+                            # yes.
+                            cls.objects.bulk_create( bulk_create_list )
                             
-                    #-- END try/except around saving. --#
+                            # increment total count
+                            total_created_count += bulk_create_count
+    
+                        except Exception as e:
+                            
+                            # error saving.  Probably encoding error.
+
+                            # process the exception
+                            exception_message = "ERROR - Exception caught in " + me + ":  bulk_create() threw exception, processing time-series data for period - start date: " + current_start_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end date: " + current_end_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; type:" + time_period_type_IN + "; category:" + time_period_category_IN + "; count of rows being bulk created = " + str( len( bulk_create_list ) )
+                            exception_status = cls.process_exception( exception_IN = e, message_IN = exception_message, print_details_IN = True )
+                            
+                            # set status to description of exception
+                            status_OUT = exception_status
+
+                            # send email to let me know this crashed?
+        
+                            # throw exception?
+                            raise( e )
+                                
+                        #-- END try/except around saving. --#
+                    
+                    #-- END check to see if we are batch updating --#
                     
                     # clear caches, performance stuff, etc.  Try garbage
                     #    collecting, not clearing django cache, to start.
                     gc.collect()
-                    # django.db.reset_queries()
+                    django.db.reset_queries()
                     
                     # Time series data needs all subreddits in data set in
                     #    all time periods.  Call function to pull in all
@@ -1204,6 +1431,20 @@ WHERE NOT EXISTS
             status_OUT = cls.STATUS_PREFIX_ERROR + "no start date passed in, so can't fill in missing rows."
         
         #-- END check to see if end date passed in. --#
+
+        # print details?
+        if ( output_details_IN == True ): 
+
+            # a little overview
+            end_dt = datetime.datetime.now()
+            print( "==> Started at " + str( start_dt ) )
+            print( "==> Finished at " + str( end_dt ) )
+            print( "==> Duration: " + str( end_dt - start_dt ) )
+            print( "==> Processed: " + str( row_counter ) )
+            print( "==> Row exists: " + str( existing_count ) )
+            print( "==> Added: " + str( add_count ) )
+                        
+        #-- END check to see if we print details. --#
 
         return status_OUT
     
@@ -1339,11 +1580,20 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
     def db_initialize_mysql( cls, db_host_IN = "localhost", db_port_IN = 3306, db_username_IN = "", db_password_IN = "", db_database_IN = "" ):
         
         # instance variables
-        cls.my_db_helper = MySQLdb_Helper( db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
+        cls.db_initialize( Database_Helper_Factory.DATABASE_TYPE_MYSQLDB, db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
         
-    #-- END class method db_initialize_mysql() --#
+    #-- END method db_initialize_mysql() --#
 
-    
+
+    @classmethod
+    def db_initialize( cls, db_type_IN = "", db_host_IN = "localhost", db_port_IN = -1, db_username_IN = "", db_password_IN = "", db_database_IN = "" ):
+        
+        # instance variables
+        cls.my_db_helper = Database_Helper_Factory.get_database_helper( db_type_IN, db_host_IN, db_port_IN, db_username_IN, db_password_IN, db_database_IN )
+        
+    #-- END method db_initialize() --#
+
+
     @classmethod
     def filter_data_on_text( cls,
                      start_dt_IN,
@@ -1420,6 +1670,10 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
         current_instance = None
         filter_column_name = ""
         match_count_column_name = ""
+
+        # exception handling
+        exception_message = ""
+        exception_status = ""
 
         # start time.        
         started_at_dt = datetime.datetime.now()
@@ -1559,13 +1813,12 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
                                     # error saving.  Probably encoding error.
                 
                                     # get exception details:
-                                    exception_type, exception_value, exception_traceback = sys.exc_info()
-                                    print( "====> In " + me + "() - bulk_create() threw exception, processing comments for post " + str( current_post.id ) + " ( reddit ID: " + current_post.reddit_id + " ); count of comments being bulk created = " + str( django_bulk_create_count ) )
-                                    print( "      - args = " + str( e.args ) )
-                                    print( "      - type = " + str( exception_type ) )
-                                    print( "      - value = " + str( exception_value ) )
-                                    print( "      - traceback = " + str( exception_traceback ) )
+                                    exception_message = "ERROR - Exception caught in " + me + "():  save() processing filter for post " + str( current_post.id ) + " ( reddit ID: " + current_post.reddit_id + " )"
+                                    exception_status = cls.process_exception( exception_IN = e, message_IN = exception_message, print_details_IN = True )
                                     
+                                    # set status to description of exception
+                                    status_OUT = exception_status
+
                                     # send email to let me know this crashed?
                 
                                     # throw exception?
@@ -1744,6 +1997,10 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
         total_created_count = -1
         aggregate_counter = -1
         
+        # exception handling
+        exception_message = ""
+        exception_status = ""
+
         # Include filters?
         include_filters = include_filters_IN
         
@@ -1984,6 +2241,12 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             # error saving.  Probably encoding error.
         
                             # get exception details:
+                            # process the exception
+                            exception_message = "ERROR - Exception caught in " + me + ":  bulk_create() threw exception, processing time-series data for period - start date: " + current_start_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; end date: " + current_end_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "; type:" + time_period_type_IN + "; category:" + time_period_category_IN + "; count of rows being bulk created = " + str( len( bulk_create_list ) )
+                            exception_status = cls.process_exception( exception_IN = e, message_IN = exception_message, print_details_IN = True )
+                            
+                            # set status to description of exception
+                            status_OUT = exception_status
                             exception_type, exception_value, exception_traceback = sys.exc_info()
                             print( "====> In " + me + ": bulk_create() threw exception, processing comments for post " + str( current_post.id ) + " ( reddit ID: " + current_post.reddit_id + " ); count of comments being bulk created = " + str( django_bulk_create_count ) )
                             print( "      - args = " + str( e.args ) )

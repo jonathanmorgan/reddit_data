@@ -45,11 +45,11 @@ time_period_label = "before"
 aggregate_counter_start = 0
 
 # call make_data.
-reddit_data.models.Subreddit_Time_Series_Data.make_data( start_date, end_date, time_series_interval, time_period_type, time_period_label, aggregate_counter_start )
+reddit_data.models.Subreddit_Time_Series_Data.make_data( start_date, end_date, time_series_interval, time_period_type, time_period_label, aggregate_counter_start, output_details_IN = True )
 
 # now after.
 start_date = boston_date
 end_date = boston_date + td_14_days
 time_period_label = "after"
 aggregate_counter_start = 337
-reddit_data.models.Subreddit_Time_Series_Data.make_data( start_date, end_date, time_series_interval, time_period_type, time_period_label, aggregate_counter_start )
+reddit_data.models.Subreddit_Time_Series_Data.make_data( start_date, end_date, time_series_interval, time_period_type, time_period_label, aggregate_counter_start, output_details_IN = True )
