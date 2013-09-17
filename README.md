@@ -176,6 +176,82 @@ Then, there are numerous examples in /examples you can use to try out different 
 
 ### Create time series data tracking traits of subreddits over time
 
+The basic steps for creating subreddit time series data:
+
+- If you have generated subreddits for a subset of your posts before, you might want to:
+    - wipe the subreddit_id column clean in all of your posts, so all subreddits are processed, even those that were created before.
+
+            /* clean out subreddit IDs. */
+            UPDATE reddit_collect_post
+            SET subreddit_id = NULL;
+            
+            UPDATE reddit_collect_comment
+            SET subreddit_id = NULL;
+            
+            UPDATE reddit_data_subreddit_time_series_data
+            SET subreddit_id = NULL;
+
+    - also delete all records in reddit\_collect\_subreddit (`DELETE FROM reddit_collect_subreddit;`, making sure to also reset the auto-increment value to 1 (`ALTER TABLE reddit_collect_subreddit AUTO_INCREMENT = 1;`).
+
+- Populate the reddit\_collect\_subreddit table with the subreddits in your posts (see examples/subreddit\_rows\_from\_posts.py).  This process also updates the relations of posts, comments, and time series data so they reference the reddit\_collect\_subreddit row to which they are related.  If subreddits are already present in the reddit\_collect\_subreddit table, it will use them, not create duplicates, and so this process can be run multiple times without clearing out the subreddit table.
+- configure variables so you get the time series data you want, and have it categorized and numbered appropriately.  You need to know:
+    - start and end date of range you want to examine time periods within.
+    - time-series interval: datetime.timedelta instance that contains the time-series interval (it could be a minute, an hour, or a week, depending on your data and what you want to compare).
+    - time-series type: text description of the time-series interval you are using (so, if interval is one hour, say "hourly").  Could also be used for other typologies.
+    - time-series label: label to describe the data.  For a before and after experiment, you could use "before" and "after", for example.
+    - starting aggregate index: If, say, you have before and after, but you also want to keep a running count across labels, you can pass an aggregate index start value and keep a running count across runs of the time-series data creation.
+    - Example:
+        
+            # set up date range in which we want to gather data.
+            boston_date = datetime.datetime( 2013, 4, 15, 18, 49, 0 )
+            
+            # create 14-day timedelta
+            td_14_days = datetime.timedelta( days = 14 )
+            
+            # to start, go from 14 days before Boston to boston.
+            start_date = boston_date - td_14_days
+            
+            # time-series interval is 1 hour
+            time_series_interval = datetime.timedelta( hours = 1 )
+            
+            # end date - all time periods up to the bombing
+            end_date = boston_date
+            
+            # OR, to test, set end date to 2 hours after start date.
+            #end_date = start_date + time_series_interval
+            #end_date = end_date + time_series_interval
+            
+            # time-period type: description of time interval, documentation for someone
+            #    just looking at data file.
+            time_period_type = reddit_data.models.Subreddit_Time_Series_Data.TIME_PERIOD_HOURLY
+            
+            # time-period label: another place to document different parts of time-series
+            #    data - in this case, will use to divide between before and after.
+            time_period_label = "before"
+            
+            # aggregate counter start: you can tell the program to start its time period
+            #    counter at other than 0, so you can have a continuous counter even if you
+            #    break this processing into multiple stages (if, say, you want "before" and
+            #    "after", but want the counter to be continuous across before and after).
+            aggregate_counter_start = 0
+
+- Before you run the time-series data creator, consider if you need to wipe existing rows.  If you've added posts to or removed posts from the time periods you are studying since doing an initial run of time series data, you might consider doing a fresh creation on a clean database (especially if you've removed posts).  To do this, simply delete the rows from the table (`DELETE FROM reddit_data_subreddit_time_series_data;`) then reset the auto-increment value (`ALTER TABLE reddit_data_subreddit_time_series_data AUTO_INCREMENT = 1;`).
+- Actually run the time-series data creation.  If a given row already exists in the data set for a given time-series period, if there are posts associated with the subreddit, it will update the row.  If not, it will just leave the existing row alone.  If a given subreddit's posts are added to a given time period, then you should be able to re-run the process to just add new subreddits.  If a given subreddit's posts are removed from a time period, that time-period's data will, at the moment, either have to be cleaned up manually or wiped and re-generated.
+
+        from python_utilities.database.database_helper_factory import Database_Helper_Factory
+
+        # initialize database
+        db_host = "localhost"
+        db_port = 3306
+        db_username = "<username>"
+        db_password = "<password>"
+        db_database = "<database>"
+        
+        reddit_data.models.Subreddit_Time_Series_Data.db_initialize( Database_Helper_Factory.DATABASE_TYPE_MYSQLDB, db_host, db_port, db_username, db_password, db_database )
+        
+        # call make_data.
+        reddit_data.models.Subreddit_Time_Series_Data.make_data( start_date, end_date, time_series_interval, time_period_type, time_period_label, aggregate_counter_start, output_details_IN = True )
+
 ### Create time series data tracking traits of domains over time
 
 ## Thanks!
