@@ -130,6 +130,26 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
 
 
     @classmethod
+    def db_close( cls ):
+        
+        # instance variables
+        db_helper = None
+        
+        # get database helper
+        db_helper = cls.my_db_helper
+        
+        # got anything?
+        if ( ( db_helper ) and ( db_helper != None ) ):
+        
+            # yes.  Close it down.
+            db_helper.close()
+            
+        #-- END check to see if helper is present --#
+        
+    #-- END method db_close() --#
+
+
+    @classmethod
     def db_initialize_mysql( cls, db_host_IN = "localhost", db_port_IN = 3306, db_username_IN = "", db_password_IN = "", db_database_IN = "" ):
         
         # instance variables
@@ -582,6 +602,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         current_select_sql = ""
         include_filters = True
         result_count = -1
+        row_counter = -1
         current_row = None
         current_subreddit_name = ""
         current_subreddit_id = ""
@@ -739,8 +760,12 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         # loop over the results, creating a new instance of this
                         #    class for each.
                         result_count = int( my_read_cursor.rowcount )
+                        row_counter = 0
                         for i in range( result_count ):
                         
+                            # increment counter
+                            row_counter += 1
+
                             # get row.
                             current_row = my_read_cursor.fetchone()
                             
@@ -750,6 +775,10 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             current_subreddit_full_id = current_row[ 'subreddit_reddit_id' ]
                             current_subreddit_post_count = current_row[ 'post_count' ]
                             
+                            if ( output_details_IN == True ):
+                                print( "In " + me + "() - " + time_period_category_IN + " - " + time_period_type_IN + " - " + str( time_period_counter ) + " ===> row " + str( row_counter ) + " of " + str( result_count ) + " - " + current_subreddit_name + " ( " + current_subreddit_full_id + " )" )
+                            #-- END check to see if output details --#
+    
                             # ! get instance of this class
                             current_instance = cls.get_instance( original_id_IN = current_subreddit_full_id,
                                                                  start_dt_IN = start_dt_IN,
@@ -1147,7 +1176,7 @@ WHERE NOT EXISTS
                     if ( ( time_period_index_IN ) and ( time_period_index_IN != None ) and ( time_period_index_IN > 0 ) ):
                         
                         # yes.  Check for it.
-                        current_select_sql += "         AND time_period_index = " + time_period_index_IN
+                        current_select_sql += "         AND time_period_index = " + str( time_period_index_IN )
                         
                     #-- END check to see if type --#
                         
@@ -1198,6 +1227,7 @@ WHERE NOT EXISTS
                     result_count = int( my_read_cursor.rowcount )
                     row_counter = 0
                     existing_count = 0
+                    add_count = 0
                     for i in range( result_count ):
                     
                         # increment counter
@@ -1213,7 +1243,7 @@ WHERE NOT EXISTS
                         current_subreddit_post_count = 0
                         
                         if ( output_details_IN == True ):
-                            print( "In " + me + "() - row " + str( row_counter ) + " of " + str( result_count ) + " - " + current_subreddit_name + " ( " + current_subreddit_full_id + " )" )
+                            print( "In " + me + "() - " + time_period_category_IN + " - " + time_period_type_IN + " - " + str( time_period_index_IN ) + " ===> row " + str( row_counter ) + " of " + str( result_count ) + " - " + current_subreddit_name + " ( " + current_subreddit_full_id + " )" )
                         #-- END check to see if output details --#
     
                         # ! get instance of this class

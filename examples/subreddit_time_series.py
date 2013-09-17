@@ -1,6 +1,7 @@
 # imports
 import reddit_data.models
 import datetime
+from python_utilities.database.database_helper_factory import Database_Helper_Factory
 
 # initialize database
 #db_host = "localhost"
@@ -9,7 +10,7 @@ import datetime
 #db_password = ""
 #db_database = ""
 
-reddit_data.models.Subreddit_Time_Series_Data.db_initialize_mysql( db_host, db_port, db_username, db_password, db_database )
+reddit_data.models.Subreddit_Time_Series_Data.db_initialize( Database_Helper_Factory.DATABASE_TYPE_MYSQLDB, db_host, db_port, db_username, db_password, db_database )
 
 # set up date range in which we want to gather data.
 boston_date = datetime.datetime( 2013, 4, 15, 18, 49, 0 )
@@ -53,3 +54,6 @@ end_date = boston_date + td_14_days
 time_period_label = "after"
 aggregate_counter_start = 337
 reddit_data.models.Subreddit_Time_Series_Data.make_data( start_date, end_date, time_series_interval, time_period_type, time_period_label, aggregate_counter_start, output_details_IN = True )
+
+# close the database
+reddit_data.models.Subreddit_Time_Series_Data.db_close()
