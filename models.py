@@ -555,6 +555,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                    update_existing_IN = True,
                    do_batch_insert_IN = True,
                    output_details_IN = False,
+                   counter_start_IN = -1,
                    *args,
                    **kwargs ):
     
@@ -668,10 +669,20 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                     #    interval_td_IN.
                     
                     # initialize variables
-                    time_period_counter = 0
                     current_start_dt = start_dt_IN
                     current_end_dt = start_dt_IN + interval_td_IN
                     total_created_count = 0
+
+                    # time period counter
+                    time_period_counter = 0
+
+                    # Got a counter start value passed in?
+                    if ( ( counter_start_IN ) and ( counter_start_IN != None ) and ( counter_start_IN > 0 ) ):
+                    
+                        # we do.  Use it.
+                        time_period_counter = counter_start_IN
+                    
+                    #-- END check to see if counter start value passed in --#
                     
                     # aggregate counter.
                     aggregate_counter = aggregate_counter_start_IN
