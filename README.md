@@ -263,7 +263,7 @@ The basic steps for creating subreddit time series data:
 
 ## Thanks!
 
-This work has been supported by the National Science Foundation under Grant IIS-0968495.
+This work has been supported in part by the National Science Foundation under Grant IIS-0968495.
 
 ## License:
 
