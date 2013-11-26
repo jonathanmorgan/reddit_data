@@ -257,6 +257,10 @@ The basic steps for creating subreddit time series data:
 
 ### Create time series data tracking traits of domains over time
 
+## Assumptions
+
+- for detecting if database is mysql or postgresql, assumes that you only have one "default" database in DATABASES in settings.py, and that the default database is your main database.  If that isn’t the case, database detection will not work and the SQL for mysql will be used (main difference is this assumes that booleans are integers, not a special boolean type).  Should make a fancier method somewhere for detecting the database engine of a given database identifier (default to "default").
+
 ## Thanks!
 
 This work has been supported by the National Science Foundation under Grant IIS-0968495.

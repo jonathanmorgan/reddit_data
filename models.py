@@ -28,6 +28,7 @@ import gc
 import sys
 
 # django
+from django.conf import settings
 from django.db import models
 import django.utils.encoding
 from django.utils.encoding import python_2_unicode_compatible
@@ -65,6 +66,10 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
     # SQL constants
     SQL_AND = "AND"
     SQL_OR = "OR"
+    
+    # Current database config
+    SETTINGS_DATABASES = getattr( settings, "DATABASES", None )
+    SETTINGS_DB_ENGINE = SETTINGS_DATABASES[ "default" ][ "ENGINE" ]
     
 
     #============================================================================
@@ -626,6 +631,9 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         exception_message = ""
         exception_status = ""
         
+        # database handling
+        is_postgres = False
+        
         # Set control variables from input parameters.
         
         # Include filters?
@@ -642,6 +650,14 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
             do_batch_insert = False
         
         #-- END check to see if updating existing --#
+        
+        # is it Postgres?
+        if ( "psycopg" in cls.SETTINGS_DB_ENGINE ):
+        
+            # yes
+            is_postgres = True
+            
+        #-- END check to see if DB ENGINE indicates postgresql --#
         
         # make sure we have start date, end date, and interval.
         if ( ( start_dt_IN ) and ( start_dt_IN != None ) ):
@@ -716,8 +732,22 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         current_select_sql = "SELECT subreddit_name"
                         current_select_sql += ", subreddit_reddit_id"
                         current_select_sql += ", COUNT( * ) AS post_count"
-                        current_select_sql += ", SUM( is_self ) AS self_post_count"
-                        current_select_sql += ", SUM( over_18 ) AS over_18_count"
+                        current_select_sql += ", SUM( is_self"
+
+                        # if postgres, cast booleans to int.
+                        if ( is_postgres == True ):
+                            current_select_sql += "::int"
+                        #-- END check to see if postgreSQL
+
+                        current_select_sql += " ) AS self_post_count"
+                        current_select_sql += ", SUM( over_18"
+
+                        # if postgres, cast booleans to int.
+                        if ( is_postgres == True ):
+                            current_select_sql += "::int"
+                        #-- END check to see if postgreSQL
+
+                        current_select_sql += " ) AS over_18_count"
                         current_select_sql += ", AVG( score ) AS score_average"
                         current_select_sql += ", MIN( score ) AS score_min"
                         current_select_sql += ", MAX( score ) AS score_max"
@@ -735,26 +765,166 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         if ( include_filters == True ):
                         
                             # yes (for now, we always do).
-                            current_select_sql += ", MAX( filter_1 ) AS filter_1"
-                            current_select_sql += ", SUM( filter_1 ) AS match_count_1"
-                            current_select_sql += ", MAX( filter_2 ) AS filter_2"
-                            current_select_sql += ", SUM( filter_2 ) AS match_count_2"
-                            current_select_sql += ", MAX( filter_3 ) AS filter_3"
-                            current_select_sql += ", SUM( filter_3 ) AS match_count_3"
-                            current_select_sql += ", MAX( filter_4 ) AS filter_4"
-                            current_select_sql += ", SUM( filter_4 ) AS match_count_4"
-                            current_select_sql += ", MAX( filter_5 ) AS filter_5"
-                            current_select_sql += ", SUM( filter_5 ) AS match_count_5"
-                            current_select_sql += ", MAX( filter_6 ) AS filter_6"
-                            current_select_sql += ", SUM( filter_6 ) AS match_count_6"
-                            current_select_sql += ", MAX( filter_7 ) AS filter_7"
-                            current_select_sql += ", SUM( filter_7 ) AS match_count_7"
-                            current_select_sql += ", MAX( filter_8 ) AS filter_8"
-                            current_select_sql += ", SUM( filter_8 ) AS match_count_8"
-                            current_select_sql += ", MAX( filter_9 ) AS filter_9"
-                            current_select_sql += ", SUM( filter_9 ) AS match_count_9"
-                            current_select_sql += ", MAX( filter_10 ) AS filter_10"
-                            current_select_sql += ", SUM( filter_10 ) AS match_count_10"
+                            current_select_sql += ", MAX( filter_1"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_1"
+                            current_select_sql += ", SUM( filter_1"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_1"
+                            current_select_sql += ", MAX( filter_2"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_2"
+                            current_select_sql += ", SUM( filter_2"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_2"
+                            current_select_sql += ", MAX( filter_3"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_3"
+                            current_select_sql += ", SUM( filter_3"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_3"
+                            current_select_sql += ", MAX( filter_4"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_4"
+                            current_select_sql += ", SUM( filter_4"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_4"
+                            current_select_sql += ", MAX( filter_5"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_5"
+                            current_select_sql += ", SUM( filter_5"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_5"
+                            current_select_sql += ", MAX( filter_6"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_6"
+                            current_select_sql += ", SUM( filter_6"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_6"
+                            current_select_sql += ", MAX( filter_7"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_7"
+                            current_select_sql += ", SUM( filter_7"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_7"
+                            current_select_sql += ", MAX( filter_8"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_8"
+                            current_select_sql += ", SUM( filter_8"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_8"
+                            current_select_sql += ", MAX( filter_9"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_9"
+                            current_select_sql += ", SUM( filter_9"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_9"
+                            current_select_sql += ", MAX( filter_10"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_10"
+                            current_select_sql += ", SUM( filter_10"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_10"
                             
                         #-- END check to see if we include filters --#
                             
@@ -763,8 +933,16 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         current_select_sql += current_start_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT )
                         current_select_sql += "' AND '"
                         current_select_sql += current_end_dt.strftime( cls.MYSQL_DATE_TIME_FORMAT )
-                        current_select_sql += "' GROUP BY subreddit_name;"
+                        current_select_sql += "' GROUP BY subreddit_name, subreddit_reddit_id";
+                        current_select_sql += " ORDER BY subreddit_name ASC;"
                         
+                        # if outputting details, output SQL
+                        if ( output_details_IN == True ):
+
+                            print( "<<< SQL: " + current_select_sql )
+
+                        #-- END check to see if we output details. --#
+
                         # execute SQL
                         my_read_cursor.execute( current_select_sql )
                         
@@ -1139,12 +1317,12 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                     '''
                     Example query:
 SELECT *
-FROM `reddit_collect_subreddit`
+FROM reddit_collect_subreddit
 WHERE NOT EXISTS
 (
     SELECT 1
-    FROM `reddit_data_subreddit_time_series_data`
-    WHERE `subreddit_reddit_id` = `reddit_collect_subreddit`.`reddit_full_id`
+    FROM reddit_data_subreddit_time_series_data
+    WHERE subreddit_reddit_id = reddit_collect_subreddit.reddit_full_id
         AND start_date = '2013-04-01 18:49:00'
         AND end_date = '2013-04-01 19:49:00'
         AND time_period_category = 'before'
@@ -1162,8 +1340,8 @@ WHERE NOT EXISTS
                     current_select_sql += " WHERE NOT EXISTS"
                     current_select_sql += " ("
                     current_select_sql += "     SELECT 1"
-                    current_select_sql += "     FROM `reddit_data_subreddit_time_series_data`"
-                    current_select_sql += "     WHERE `subreddit_reddit_id` = `reddit_collect_subreddit`.`reddit_full_id`"
+                    current_select_sql += "     FROM reddit_data_subreddit_time_series_data"
+                    current_select_sql += "     WHERE subreddit_reddit_id = reddit_collect_subreddit.reddit_full_id"
                     current_select_sql += "         AND start_date = '" + start_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "'"
                     current_select_sql += "         AND end_date = '" + end_dt_IN.strftime( cls.MYSQL_DATE_TIME_FORMAT ) + "'"
                     
@@ -1571,6 +1749,10 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
     SQL_AND = "AND"
     SQL_OR = "OR"
     
+    # Current database config
+    SETTINGS_DATABASES = getattr( settings, "DATABASES", None )
+    SETTINGS_DB_ENGINE = SETTINGS_DATABASES[ "default" ][ "ENGINE" ]
+
 
     #============================================================================
     # Django model fields from parent.
@@ -2042,8 +2224,19 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
         exception_message = ""
         exception_status = ""
 
+        # database handling
+        is_postgres = False
+        
         # Include filters?
         include_filters = include_filters_IN
+        
+        # is it Postgres?
+        if ( "psycopg" in cls.SETTINGS_DB_ENGINE ):
+        
+            # yes
+            is_postgres = True
+            
+        #-- END check to see if DB ENGINE indicates postgresql --#
         
         # make sure we have start date, end date, and interval.
         if ( ( start_dt_IN ) and ( start_dt_IN != None ) ):
@@ -2099,8 +2292,22 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         # create SQL
                         current_select_sql = "SELECT domain_name"
                         current_select_sql += ", COUNT( * ) AS post_count"
-                        current_select_sql += ", SUM( is_self ) AS self_post_count"
-                        current_select_sql += ", SUM( over_18 ) AS over_18_count"
+                        current_select_sql += ", SUM( is_self"
+
+                        # if postgres, cast booleans to int.
+                        if ( is_postgres == True ):
+                            current_select_sql += "::int"
+                        #-- END check to see if postgreSQL
+
+                        current_select_sql += " ) AS self_post_count"
+                        current_select_sql += ", SUM( over_18"
+
+                        # if postgres, cast booleans to int.
+                        if ( is_postgres == True ):
+                            current_select_sql += "::int"
+                        #-- END check to see if postgreSQL
+
+                        current_select_sql += " ) AS over_18_count"
                         current_select_sql += ", AVG( score ) AS score_average"
                         current_select_sql += ", MIN( score ) AS score_min"
                         current_select_sql += ", MAX( score ) AS score_max"
@@ -2118,26 +2325,166 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         if ( include_filters == True ):
                         
                             # yes (for now, we always do).
-                            current_select_sql += ", MAX( filter_1 ) AS filter_1"
-                            current_select_sql += ", SUM( filter_1 ) AS match_count_1"
-                            current_select_sql += ", MAX( filter_2 ) AS filter_2"
-                            current_select_sql += ", SUM( filter_2 ) AS match_count_2"
-                            current_select_sql += ", MAX( filter_3 ) AS filter_3"
-                            current_select_sql += ", SUM( filter_3 ) AS match_count_3"
-                            current_select_sql += ", MAX( filter_4 ) AS filter_4"
-                            current_select_sql += ", SUM( filter_4 ) AS match_count_4"
-                            current_select_sql += ", MAX( filter_5 ) AS filter_5"
-                            current_select_sql += ", SUM( filter_5 ) AS match_count_5"
-                            current_select_sql += ", MAX( filter_6 ) AS filter_6"
-                            current_select_sql += ", SUM( filter_6 ) AS match_count_6"
-                            current_select_sql += ", MAX( filter_7 ) AS filter_7"
-                            current_select_sql += ", SUM( filter_7 ) AS match_count_7"
-                            current_select_sql += ", MAX( filter_8 ) AS filter_8"
-                            current_select_sql += ", SUM( filter_8 ) AS match_count_8"
-                            current_select_sql += ", MAX( filter_9 ) AS filter_9"
-                            current_select_sql += ", SUM( filter_9 ) AS match_count_9"
-                            current_select_sql += ", MAX( filter_10 ) AS filter_10"
-                            current_select_sql += ", SUM( filter_10 ) AS match_count_10"
+                            current_select_sql += ", MAX( filter_1"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_1"
+                            current_select_sql += ", SUM( filter_1"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_1"
+                            current_select_sql += ", MAX( filter_2"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_2"
+                            current_select_sql += ", SUM( filter_2"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_2"
+                            current_select_sql += ", MAX( filter_3"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_3"
+                            current_select_sql += ", SUM( filter_3"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_3"
+                            current_select_sql += ", MAX( filter_4"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_4"
+                            current_select_sql += ", SUM( filter_4"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_4"
+                            current_select_sql += ", MAX( filter_5"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_5"
+                            current_select_sql += ", SUM( filter_5"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_5"
+                            current_select_sql += ", MAX( filter_6"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_6"
+                            current_select_sql += ", SUM( filter_6"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_6"
+                            current_select_sql += ", MAX( filter_7"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_7"
+                            current_select_sql += ", SUM( filter_7"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_7"
+                            current_select_sql += ", MAX( filter_8"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_8"
+                            current_select_sql += ", SUM( filter_8"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_8"
+                            current_select_sql += ", MAX( filter_9"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_9"
+                            current_select_sql += ", SUM( filter_9"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_9"
+                            current_select_sql += ", MAX( filter_10"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS filter_10"
+                            current_select_sql += ", SUM( filter_10"
+
+                            # if postgres, cast booleans to int.
+                            if ( is_postgres == True ):
+                                current_select_sql += "::int"
+                            #-- END check to see if postgreSQL
+    
+                            current_select_sql += " ) AS match_count_10"
                             
                         #-- END check to see if we include filters --#
                             
