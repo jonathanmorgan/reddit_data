@@ -695,8 +695,9 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                     # Got a counter start value passed in?
                     if ( ( counter_start_IN ) and ( counter_start_IN != None ) and ( counter_start_IN > 0 ) ):
                     
-                        # we do.  Use it.
-                        time_period_counter = counter_start_IN
+                        # we do.  Use it (subtract 1 so we increment to this
+                        #    value in first pass through loop).
+                        time_period_counter = counter_start_IN - 1
                     
                     #-- END check to see if counter start value passed in --#
                     
