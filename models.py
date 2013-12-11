@@ -1040,7 +1040,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             try:
                             
                                 # try to get subreddit instance
-                                subreddit_instance = reddit_collect.models.Subreddit.objects.get( reddit_full_id = current_subreddit_id )
+                                subreddit_instance = reddit_collect.models.Subreddit.objects.get( reddit_full_id = current_subreddit_full_id )
                                 
                             except:
                             
@@ -1245,6 +1245,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         result_count = -1
         row_counter = -1
         current_row = None
+        current_subreddit_pk = -1
         current_subreddit_name = ""
         current_subreddit_id = ""
         current_subreddit_full_id = ""
@@ -1427,8 +1428,9 @@ WHERE NOT EXISTS
                         current_row = my_read_cursor.fetchone()
                         
                         # get values
+                        current_subreddit_pk = current_row[ 'id' ]
                         current_subreddit_name = current_row[ 'name' ]
-                        current_subreddit_id = current_row[ 'reddit_id' ]
+                        current_subreddit_id = current_row[ 'reddit_full_id' ]
                         current_subreddit_full_id = current_row[ 'reddit_full_id' ]
                         current_subreddit_post_count = 0
                         
@@ -1522,25 +1524,31 @@ WHERE NOT EXISTS
                             current_instance.num_comments_min = 0
                             current_instance.num_comments_max = 0
     
+                            # no need to look up subreddit.  We are updating
+                            #    from a query of reddit_collect_subreddit - 
+                            #    just put ID of current row in subreddit_id.
+                            current_instance.subreddit_id = current_subreddit_pk
+
+                            # no more:
                             # see if there is a subreddit instance for this ID.
-                            subreddit_instance = None
-                            try:
+                            #subreddit_instance = None
+                            #try:
                             
                                 # try to get subreddit instance
-                                subreddit_instance = reddit_collect.models.Subreddit.objects.get( reddit_full_id = current_subreddit_id )
+                            #    subreddit_instance = reddit_collect.models.Subreddit.objects.get( reddit_full_id = current_subreddit_full_id )
                                 
-                            except:
+                            #except:
                             
                                 # for now, do nothing.
-                                subreddit_instance = None
+                            #    subreddit_instance = None
                             
                             #-- END try/except to look up subreddit model instance. --#
                             
                             # got one?
-                            if ( ( subreddit_instance ) and ( subreddit_instance != None ) ):
+                            #if ( ( subreddit_instance ) and ( subreddit_instance != None ) ):
                             
                                 # add to current_instance
-                                current_instance.subreddit = subreddit_instance
+                            #    current_instance.subreddit = subreddit_instance
                             
                             #-- END check to see if we have subreddit instance --#
     
