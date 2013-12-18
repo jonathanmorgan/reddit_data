@@ -91,18 +91,23 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
     post_count = models.IntegerField( null = True, blank = True )
     self_post_count = models.IntegerField( null = True, blank = True )
     over_18_count = models.IntegerField( null = True, blank = True )
+    unique_author_count = models.IntegerField( null = True, blank = True )
     score_average = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     score_min = models.IntegerField( null = True, blank = True )
     score_max = models.IntegerField( null = True, blank = True )
+    score_variance = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     upvotes_average = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     upvotes_min = models.IntegerField( null = True, blank = True )
     upvotes_max = models.IntegerField( null = True, blank = True )
+    upvotes_variance = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     downvotes_average = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     downvotes_min = models.IntegerField( null = True, blank = True )
     downvotes_max = models.IntegerField( null = True, blank = True )
+    downvotes_variance = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     num_comments_average = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     num_comments_min = models.IntegerField( null = True, blank = True )
     num_comments_max = models.IntegerField( null = True, blank = True )    
+    num_comments_variance = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     
     #============================================================================
     # class variables (always access via class, not instance).
@@ -560,6 +565,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                    update_existing_IN = True,
                    do_batch_insert_IN = True,
                    output_details_IN = False,
+                   process_inactive_subreddits_IN = True,
                    counter_start_IN = -1,
                    *args,
                    **kwargs ):
@@ -590,7 +596,10 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         - aggregate_counter_start_IN - (optional) value you want aggregate counter to begin at for this set of data.  This lets you track increasing time-series across labels (before - 1 to 366 - and after - 367 and up - for instance).
         - include_filters_IN - (optional) Boolean - True if you want to use the posts' filter fields to set the time series values, False if you want to set them separately.  Defaults to True.
         - update_existing_IN - (optional) Boolean - True if you want to update existing records.  False if not.  Defaults to True.  If you are running for the first time on an empty database, set to False, and it should run more quickly.
-        - do_batch_insert_IN = (optional) Boolean - True if you want to do batch insert, False if you want to save each new record one at a time.  Defaults to True.  If you choose to update existing, defaults to False.
+        - do_batch_insert_IN = (optional) Boolean - True if you want to do batch insert, False if you want to save each new record one at a time.  Defaults to True.  If you choose to update existing, will always be False (no way to do a batch update).
+        - output_details_IN = (optional) Boolean - True if you want the process to output detailed logging as it runs, False if not.  Defaults to False.
+        - process_inactive_subreddits_IN = (optional) Boolean - True if you want to create rows for all subreddits present in your data set for each time period.  False if you want to just create rows for active subreddits.  Defaults to True.  If your data hasn't changed and you just add a few new fields, or if you pulled in comments and just want to update active rows, for example, you can set this to False.
+        - counter_start_IN = (optional) integer - Base counter you want to start with.  Used if you have an error and want to start in the middle of a period.  Defaults to starting at one and counting up.
         '''
     
         # return reference
@@ -634,6 +643,12 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         # database handling
         is_postgres = False
         
+        # performance and auditing
+        start_dt = None        
+        end_dt = None
+
+        start_dt = datetime.datetime.now()
+
         # Set control variables from input parameters.
         
         # Include filters?
@@ -733,6 +748,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         current_select_sql = "SELECT subreddit_name"
                         current_select_sql += ", subreddit_reddit_id"
                         current_select_sql += ", COUNT( * ) AS post_count"
+                        current_select_sql += ", COUNT( DISTINCT author_name ) AS unique_author_count"
                         current_select_sql += ", SUM( is_self"
 
                         # if postgres, cast booleans to int.
@@ -752,15 +768,19 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         current_select_sql += ", AVG( score ) AS score_average"
                         current_select_sql += ", MIN( score ) AS score_min"
                         current_select_sql += ", MAX( score ) AS score_max"
+                        current_select_sql += ", VAR_SAMP( score ) AS score_variance"
                         current_select_sql += ", AVG( upvotes ) AS upvotes_average"
                         current_select_sql += ", MIN( upvotes ) AS upvotes_min"
                         current_select_sql += ", MAX( upvotes ) AS upvotes_max"
+                        current_select_sql += ", VAR_SAMP( upvotes ) AS upvotes_variance"
                         current_select_sql += ", AVG( downvotes ) AS downvotes_average"
                         current_select_sql += ", MIN( downvotes ) AS downvotes_min"
                         current_select_sql += ", MAX( downvotes ) AS downvotes_max"
+                        current_select_sql += ", VAR_SAMP( downvotes ) AS downvotes_variance"
                         current_select_sql += ", AVG( num_comments ) AS num_comments_average"
                         current_select_sql += ", MIN( num_comments ) AS num_comments_min"
                         current_select_sql += ", MAX( num_comments ) AS num_comments_max"
+                        current_select_sql += ", VAR_SAMP( num_comments ) AS num_comments_variance"
 
                         # also aggregate filter flags - just MAX, SUM to count matches.
                         if ( include_filters == True ):
@@ -1022,18 +1042,23 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             current_instance.post_count = current_subreddit_post_count
                             current_instance.self_post_count = current_row[ 'self_post_count' ]
                             current_instance.over_18_count = current_row[ 'over_18_count' ]
+                            current_instance.unique_author_count = current_row[ 'unique_author_count' ]
                             current_instance.score_average = current_row[ 'score_average' ]
                             current_instance.score_min = current_row[ 'score_min' ]
                             current_instance.score_max = current_row[ 'score_max' ]
+                            current_instance.score_variance = current_row[ 'score_variance' ]
                             current_instance.upvotes_average = current_row[ 'upvotes_average' ]
                             current_instance.upvotes_min = current_row[ 'upvotes_min' ]
                             current_instance.upvotes_max = current_row[ 'upvotes_max' ]
+                            current_instance.upvotes_variance = current_row[ 'upvotes_variance' ]
                             current_instance.downvotes_average = current_row[ 'downvotes_average' ]
                             current_instance.downvotes_min = current_row[ 'downvotes_min' ]
                             current_instance.downvotes_max = current_row[ 'downvotes_max' ]
+                            current_instance.downvotes_variance = current_row[ 'downvotes_variance' ]
                             current_instance.num_comments_average = current_row[ 'num_comments_average' ]
                             current_instance.num_comments_min = current_row[ 'num_comments_min' ]
                             current_instance.num_comments_max = current_row[ 'num_comments_max' ]
+                            current_instance.num_comments_variance = current_row[ 'num_comments_variance' ]
 
                             # see if there is a subreddit instance for this ID.
                             subreddit_instance = None
@@ -1138,20 +1163,31 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         gc.collect()
                         # django.db.reset_queries()
                         
-                        # Time series data needs all subreddits in data set in
-                        #    all time periods.  Call function to pull in all
-                        #    subreddits not already in our data for this time
-                        #    period.
-                        cls.make_data_add_missing_rows( start_dt_IN = current_start_dt,
-                                                        end_dt_IN = current_end_dt,
-                                                        time_period_type_IN = time_period_type_IN,
-                                                        time_period_category_IN = time_period_category_IN,
-                                                        time_period_index_IN = time_period_counter,
-                                                        aggregate_counter_IN = aggregate_counter,
-                                                        include_filters_IN = include_filters_IN,
-                                                        update_existing_IN = update_existing_IN,
-                                                        do_batch_insert_IN = do_batch_insert_IN,
-                                                        output_details_IN = output_details_IN )
+                        # do we process inactive subreddits (add missing rows)?
+                        #    If you are running for the first time, you need to
+                        #    create rows for all subreddits.  If your underlying
+                        #    data has changed, you should also probably do this.
+                        #    If you know what you are doing and you just want to
+                        #    update information for subreddits that are active in
+                        #    a given time period, though, set this to False.
+                        if ( process_inactive_subreddits_IN == True ):
+
+                            # Time series data needs all subreddits in data set in
+                            #    all time periods.  Call function to pull in all
+                            #    subreddits not already in our data for this time
+                            #    period.
+                            cls.make_data_add_missing_rows( start_dt_IN = current_start_dt,
+                                                            end_dt_IN = current_end_dt,
+                                                            time_period_type_IN = time_period_type_IN,
+                                                            time_period_category_IN = time_period_category_IN,
+                                                            time_period_index_IN = time_period_counter,
+                                                            aggregate_counter_IN = aggregate_counter,
+                                                            include_filters_IN = include_filters_IN,
+                                                            update_existing_IN = update_existing_IN,
+                                                            do_batch_insert_IN = do_batch_insert_IN,
+                                                            output_details_IN = output_details_IN )
+
+                        #-- END check to see if we process inactive rows --#
 
                         # increment start and end dt.
                         current_start_dt = current_end_dt
@@ -1178,6 +1214,18 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
             status_OUT = cls.STATUS_PREFIX_ERROR + "no start date passed in, so can't create time-series data."
         
         #-- END check to see if end date passed in. --#
+
+        # print details?
+        if ( output_details_IN == True ): 
+
+            # a little overview
+            end_dt = datetime.datetime.now()
+            print( "==> Started at " + str( start_dt ) )
+            print( "==> Finished at " + str( end_dt ) )
+            print( "==> Duration: " + str( end_dt - start_dt ) )
+            print( "==> Processed: " + str( row_counter ) )
+                        
+        #-- END check to see if we print details. --#
 
         return status_OUT
     
@@ -1228,6 +1276,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         - include_filters_IN - (optional) Boolean - True if you want to use the posts' filter fields to set the time series values, False if you want to set them separately.  Defaults to True.
         - update_existing_IN - (optional) Boolean - True if you want to update existing records.  False if not.  Defaults to True.  If you are running for the first time on an empty database, set to False, and it should run more quickly.
         - do_batch_insert_IN = (optional) Boolean - True if you want to do batch insert, False if you want to save each new record one at a time.  Defaults to True.  If you choose to update existing, defaults to False.
+        - output_details_IN = (optional) Boolean - True if you want the process to output detailed logging as it runs, False if not.  Defaults to False.
         '''
     
         # return reference
@@ -1511,18 +1560,23 @@ WHERE NOT EXISTS
                             current_instance.post_count = 0
                             current_instance.self_post_count = 0
                             current_instance.over_18_count = 0
+                            current_instance.unique_author_count = 0
                             current_instance.score_average = 0
                             current_instance.score_min = 0
                             current_instance.score_max = 0
+                            current_instance.score_variance = 0
                             current_instance.upvotes_average = 0
                             current_instance.upvotes_min = 0
                             current_instance.upvotes_max = 0
+                            current_instance.upvotes_variance = 0
                             current_instance.downvotes_average = 0
                             current_instance.downvotes_min = 0
                             current_instance.downvotes_max = 0
+                            current_instance.downvotes_variance = 0
                             current_instance.num_comments_average = 0
                             current_instance.num_comments_min = 0
                             current_instance.num_comments_max = 0
+                            current_instance.num_comments_variance = 0
     
                             # no need to look up subreddit.  We are updating
                             #    from a query of reddit_collect_subreddit - 
@@ -1781,18 +1835,23 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
     post_count = models.IntegerField( null = True, blank = True )
     self_post_count = models.IntegerField( null = True, blank = True )
     over_18_count = models.IntegerField( null = True, blank = True )
+    unique_author_count = models.IntegerField( null = True, blank = True )
     score_average = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     score_min = models.IntegerField( null = True, blank = True )
     score_max = models.IntegerField( null = True, blank = True )
+    score_variance = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     upvotes_average = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     upvotes_min = models.IntegerField( null = True, blank = True )
     upvotes_max = models.IntegerField( null = True, blank = True )
+    upvotes_variance = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     downvotes_average = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     downvotes_min = models.IntegerField( null = True, blank = True )
     downvotes_max = models.IntegerField( null = True, blank = True )
+    downvotes_variance = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     num_comments_average = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     num_comments_min = models.IntegerField( null = True, blank = True )
     num_comments_max = models.IntegerField( null = True, blank = True )    
+    num_comments_variance = models.DecimalField( max_digits = 19, decimal_places = 10, null = True, blank = True )
     
     #============================================================================
     # class variables (always access via class, not instance).

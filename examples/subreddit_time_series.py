@@ -44,7 +44,6 @@ end_date = boston_date
 
 # OR, to test, set end date to 2 hours after start date.
 #end_date = start_date + time_series_interval
-#end_date = end_date + time_series_interval
 
 # time-period label: another place to document different parts of time-series
 #    data - in this case, will use to divide between before and after.
@@ -58,6 +57,10 @@ aggregate_counter_start = 0
 
 # call make_data.
 reddit_data.models.Subreddit_Time_Series_Data.make_data( start_date, end_date, time_series_interval, time_period_type, time_period_label, aggregate_counter_start, output_details_IN = True )
+
+# if you are creating data from scratch, to make this run faster, pass flag to
+#    not update existing:
+#reddit_data.models.Subreddit_Time_Series_Data.make_data( start_date, end_date, time_series_interval, time_period_type, time_period_label, aggregate_counter_start, update_existing_IN = False, output_details_IN = True )
 
 #--------------------------------------------------------------------------------
 # now after.
