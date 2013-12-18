@@ -62,6 +62,14 @@ reddit_data.models.Subreddit_Time_Series_Data.make_data( start_date, end_date, t
 #    not update existing:
 #reddit_data.models.Subreddit_Time_Series_Data.make_data( start_date, end_date, time_series_interval, time_period_type, time_period_label, aggregate_counter_start, update_existing_IN = False, output_details_IN = True )
 
+# you can also tell make_data to only update subreddits that had activity, not
+#    process those that did not.  This might be useful if you need to update
+#    time series data because you've added information to your posts, but you
+#    haven't fundamentally changed the numbers of posts per subreddit per period.
+#    If you have added or removed posts, then you'll likely need to rebuild the
+#    entire data set.
+#reddit_data.models.Subreddit_Time_Series_Data.make_data( start_date, end_date, time_series_interval, time_period_type, time_period_label, aggregate_counter_start, process_inactive_subreddits_IN = False, output_details_IN = True )
+
 #--------------------------------------------------------------------------------
 # now after.
 #--------------------------------------------------------------------------------
