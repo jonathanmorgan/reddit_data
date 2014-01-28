@@ -630,7 +630,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         bulk_create_count = -1
         total_created_count = -1
         aggregate_counter = -1
-        
+
         # update control
         update_existing = False
         do_batch_insert = False
@@ -644,6 +644,11 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         is_postgres = False
         
         # performance and auditing
+        period_found_count = -1
+        period_not_found_count = -1
+        processed_count = -1
+        found_count = -1
+        not_found_count = -1
         start_dt = None        
         end_dt = None
 
@@ -703,6 +708,9 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                     current_start_dt = start_dt_IN
                     current_end_dt = start_dt_IN + interval_td_IN
                     total_created_count = 0
+                    processed_count = 0
+                    found_count = 0
+                    not_found_count = 0
 
                     # time period counter
                     time_period_counter = 0
@@ -740,7 +748,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         # increment counters
                         time_period_counter += 1
                         aggregate_counter += 1
-                        
+                                                
                         # reset save list.
                         bulk_create_list = []
                         
@@ -971,6 +979,8 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         #    class for each.
                         result_count = int( my_read_cursor.rowcount )
                         row_counter = 0
+                        period_found_count = 0
+                        period_not_found_count = 0
                         for i in range( result_count ):
                         
                             # increment counter
@@ -986,17 +996,44 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             current_subreddit_post_count = current_row[ 'post_count' ]
                             
                             if ( output_details_IN == True ):
-                                print( "In " + me + "() - " + time_period_category_IN + " - " + time_period_type_IN + " - " + str( time_period_counter ) + " ===> row " + str( row_counter ) + " of " + str( result_count ) + " - " + current_subreddit_name + " ( " + current_subreddit_full_id + " )" )
+                                print( "In " + me + "() - " + time_period_category_IN + " - " + time_period_type_IN + " - " + str( time_period_counter ) + " ===> row " + str( row_counter ) + " of " + str( result_count ) + " - " + current_subreddit_name + " ( " + current_subreddit_full_id + " ) - Updating? " + str( update_existing ) )                            
+                                #print( "====> original_id_IN = " + str( current_subreddit_full_id ) )
+                                #print( "====> start_dt_IN = " + str( current_start_dt ) )
+                                #print( "====> end_dt_IN = " + str( current_end_dt ) )
+                                #print( "====> time_period_type_IN = " + str( time_period_type_IN ) )
+                                #print( "====> time_period_category_IN = " + str( time_period_category_IN ) )
+                                #print( "====> time_period_index_IN = " + str( time_period_counter ) )
+                                #print( "====> update_existing_IN = " + str( update_existing ) )
                             #-- END check to see if output details --#
-    
+
                             # ! get instance of this class
                             current_instance = cls.get_instance( original_id_IN = current_subreddit_full_id,
-                                                                 start_dt_IN = start_dt_IN,
-                                                                 end_dt_IN = end_dt_IN,
+                                                                 start_dt_IN = current_start_dt,
+                                                                 end_dt_IN = current_end_dt,
                                                                  time_period_type_IN = time_period_type_IN,
                                                                  time_period_category_IN = time_period_category_IN,
                                                                  time_period_index_IN = time_period_counter,
                                                                  update_existing_IN = update_existing )
+                            
+                            if ( ( current_instance.pk ) and ( current_instance.pk > 0 ) ):
+                            
+                                # found.  Increment counter.
+                                period_found_count += 1
+                                
+                                if ( output_details_IN == True ):
+                                    print( "In " + me + "() - Found existing row ( id = " + str( current_instance.pk ) + " )." )
+                                #-- END check to see if output details --#
+                            
+                            else:
+                            
+                                # not found.  Increment counter.
+                                period_not_found_count += 1
+                            
+                                if ( output_details_IN == True ):
+                                    print( "In " + me + "() - No existing row found - Updating? " + str( update_existing ) )
+                                #-- END check to see if output details --#
+
+                            #-- END check to see if found --#
                             
                             # populate values.
                             current_instance.start_date = current_start_dt
@@ -1051,6 +1088,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             current_instance.upvotes_min = current_row[ 'upvotes_min' ]
                             current_instance.upvotes_max = current_row[ 'upvotes_max' ]
                             current_instance.upvotes_variance = current_row[ 'upvotes_variance' ]
+                            # print ( "***===+++ - upvotes variance = " + str( current_instance.upvotes_variance ) )
                             current_instance.downvotes_average = current_row[ 'downvotes_average' ]
                             current_instance.downvotes_min = current_row[ 'downvotes_min' ]
                             current_instance.downvotes_max = current_row[ 'downvotes_max' ]
@@ -1193,6 +1231,17 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         current_start_dt = current_end_dt
                         current_end_dt = current_start_dt + interval_td_IN
                     
+                        # update the processed counter
+                        processed_count += row_counter
+                        found_count += period_found_count
+                        not_found_count += period_not_found_count
+                        
+                        # output of time-period information should go here.
+                        print( "====> Period Processed: " + str( row_counter ) )
+                        print( "====> Period Batch-Inserted: " + str( bulk_create_count ) )
+                        print( "====> Period Found: " + str( period_found_count ) )
+                        print( "====> Period Not Found: " + str( period_not_found_count ) )
+                        
                     #-- END loop over increments of time --#
 
                 else:
@@ -1223,7 +1272,10 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
             print( "==> Started at " + str( start_dt ) )
             print( "==> Finished at " + str( end_dt ) )
             print( "==> Duration: " + str( end_dt - start_dt ) )
-            print( "==> Processed: " + str( row_counter ) )
+            print( "==> Total Processed: " + str( processed_count ) )
+            print( "==> Total Batch-Inserted: " + str( total_created_count ) )
+            print( "==> Total Found: " + str( found_count ) )
+            print( "==> Total Not Found: " + str( not_found_count ) )
                         
         #-- END check to see if we print details. --#
 
