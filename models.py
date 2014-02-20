@@ -634,6 +634,8 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         # update control
         update_existing = False
         do_batch_insert = False
+        is_row_in_database = False
+        do_call_save = False
         
         # exception handling
         exception_helper = None
@@ -664,10 +666,10 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
         
         # update existing?
         update_existing = update_existing_IN
-        if ( ( update_existing ) and ( update_existing != None ) and ( update_existing == True ) ):
+        #if ( ( update_existing ) and ( update_existing != None ) and ( update_existing == True ) ):
         
             # yes - no batch insert.
-            do_batch_insert = False
+            #do_batch_insert = False
         
         #-- END check to see if updating existing --#
         
@@ -972,10 +974,10 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
 
                         #-- END check to see if we output details. --#
 
-                        # execute SQL
+                        # !execute SQL
                         my_read_cursor.execute( current_select_sql )
                         
-                        # loop over the results, creating a new instance of this
+                        # !loop over the results, creating a new instance of this
                         #    class for each.
                         result_count = int( my_read_cursor.rowcount )
                         row_counter = 0
@@ -985,6 +987,9 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                         
                             # increment counter
                             row_counter += 1
+                            
+                            # initialize variables
+                            do_call_save = False
 
                             # get row.
                             current_row = my_read_cursor.fetchone()
@@ -1006,7 +1011,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                                 #print( "====> update_existing_IN = " + str( update_existing ) )
                             #-- END check to see if output details --#
 
-                            # ! get instance of this class
+                            # !get instance of this class
                             current_instance = cls.get_instance( original_id_IN = current_subreddit_full_id,
                                                                  start_dt_IN = current_start_dt,
                                                                  end_dt_IN = current_end_dt,
@@ -1015,6 +1020,7 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                                                                  time_period_index_IN = time_period_counter,
                                                                  update_existing_IN = update_existing )
                             
+                            # check if row exists already.
                             if ( ( current_instance.pk ) and ( current_instance.pk > 0 ) ):
                             
                                 # found.  Increment counter.
@@ -1023,6 +1029,9 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                                 if ( output_details_IN == True ):
                                     print( "In " + me + "() - Found existing row ( id = " + str( current_instance.pk ) + " )." )
                                 #-- END check to see if output details --#
+                                
+                                # set found flag.
+                                is_row_in_database = True
                             
                             else:
                             
@@ -1033,6 +1042,9 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                                     print( "In " + me + "() - No existing row found - Updating? " + str( update_existing ) )
                                 #-- END check to see if output details --#
 
+                                # set found flag.
+                                is_row_in_database = False
+                            
                             #-- END check to see if found --#
                             
                             # populate values.
@@ -1147,23 +1159,52 @@ class Subreddit_Time_Series_Data( AbstractTimeSeriesDataModel ):
                             
                             #-- END check to see if we include filters --#
                             
-                            # doing batch insert?
-                            if ( do_batch_insert == True ):
+                            # !save to database.  Is it an update?
+                            if ( is_row_in_database == False ):
 
-                                # yes - Add to list of instances to bulk save.
-                                bulk_create_list.append( current_instance )
+                                # insert.  Are we batch inserting?
+                                if ( do_batch_insert == True ):
                                 
-                            else:
+                                    # yes - Add to list of instances to bulk save.
+                                    bulk_create_list.append( current_instance )
+                                    
+                                    # bulk.  No need to also call save.
+                                    do_call_save = False
+                                    
+                                else:
+                                
+                                    # not bulk.  Call save method.
+                                    do_call_save = True
+                                    
+                                #-- END check to see if batch insert. --#
+                                
+                            # if in database, if also are updating, set save() flag.
+                            elif ( ( is_row_in_database == True ) and ( update_existing == True ) ):
                             
-                                # no - either updating, or just not doing batch.
+                                # not bulk, row is in database and we are
+                                #    updating.  Call save method.
+                                do_call_save = True
+
+                            else:
+
+                                # for all others (probably existing, but not
+                                #    updating), don't save.
+                                do_call_save = False
+                                
+                            #-- END check to see if we need to save or not.
+                            
+                            # Do we save?
+                            if ( do_call_save == True ):
+
+                                # yes.
                                 current_instance.save()
                                 
-                            #-- END check to see if doing batch insert. --#
+                            #-- END check to see if we call save(). --#
                             
                         #-- END loop over subreddit data for this time period. --#
                         
                         # doing batch insert?
-                        if ( do_batch_insert == True ):
+                        if ( ( do_batch_insert == True ) and ( len( bulk_create_list ) > 0 ) ):
 
                             # try/except around saving rows for subreddits with
                             #    posts in our time period.
@@ -2291,7 +2332,16 @@ class Domain_Time_Series_Data( AbstractTimeSeriesDataModel ):
     
 
     @classmethod
-    def make_data( cls, start_dt_IN, end_dt_IN, interval_td_IN, time_period_type_IN = "", time_period_category_IN = "", aggregate_counter_start_IN = 0, include_filters_IN = True, *args, **kwargs ):
+    def make_data( cls,
+                   start_dt_IN,
+                   end_dt_IN,
+                   interval_td_IN,
+                   time_period_type_IN = "",
+                   time_period_category_IN = "",
+                   aggregate_counter_start_IN = 0,
+                   include_filters_IN = True,
+                   *args,
+                   **kwargs ):
     
         '''
         Accepts a start and end datetime, the interval you want captured in time-
